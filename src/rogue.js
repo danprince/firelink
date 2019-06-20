@@ -61,13 +61,14 @@ export class Entity {
    * @param {EntityDef} def
    */
   constructor(def) {
+    this.def = def;
     this.glyph = def.glyph;
     this.color = def.color;
     this.id = Entity.getNextId();
-    this.disabled = false;
-    this.x = 0
-    this.y = 0
-    this.z = 0
+    this.active = false;
+    this.x = 0;
+    this.y = 0;
+    this.z = 0;
 
     /**
      * @type {World}
@@ -80,21 +81,11 @@ export class Entity {
     this.components = [];
   }
 
-  disable() {
-    if (this.disabled === false) {
-      this.send("disable");
-      this.disabled = true;
-    }
-  }
-
-  enable() {
-    if (this.disabled === true) {
-      this.send("enable");
-      this.disabled = false;
-    }
-  }
-
   send(event) {
+    if (typeof event === "string") {
+      event = { type: event };
+    }
+
     for (let component of this.components) {
       component.onEvent(event);
     }
@@ -103,11 +94,17 @@ export class Entity {
   add(component) {
     this.components.push(component);
     component.entity = this;
-    component.onEnter();
+
+    if (this.active) {
+      component.onEnter();
+    }
   }
 
   delete(component) {
-    component.onExit();
+    if (this.active) {
+      component.onExit();
+    }
+
     component.entity = null;
     Utils.removeFromList(this.components, component);
   }
@@ -135,16 +132,34 @@ export class Entity {
     return event.action;
   }
 
-  /**
-   * Pre-action update hook
-   */
+  onEnter() {
+    this.active = true;
+
+    for (let component of this.components) {
+      component.onEnter();
+    }
+  }
+
+  onExit() {
+    for (let component of this.components) {
+      component.onExit();
+    }
+
+    this.active = false;
+  }
+
+  onBeforeTurn() {
+    this.send("before-turn");
+  }
+
+  onAfterTurn() {
+    this.send("after-turn");
+  }
+
   onBeforeAction(action) {
     this.send("before-action", action);
   }
 
-  /**
-   * Post-action update hook
-   */
   onAfterAction(action) {
     this.send("after-action", action);
   }
@@ -427,14 +442,14 @@ export class World {
   spawn(entity) {
     entity.world = this;
     this.entities.set(entity.id, entity);
-    entity.send("enter");
+    entity.onEnter();
   }
 
   /**
    * @param {Entity} entity
    */
   despawn(entity) {
-    entity.send("exit");
+    entity.onExit();
     entity.world = null;
     this.entities.delete(entity.id);
   }
@@ -465,12 +480,16 @@ export class World {
   async start() {
     while (true) {
       for (let [_, entity] of this.entities) {
+        entity.onBeforeTurn();
+
         // Try actions until one succeeds
         while (true) {
           let action = await entity.takeTurn();
           let result = this.tryAction(entity, action);
           if (result.ok) break;
         }
+
+        entity.onAfterTurn();
       }
 
       this.turns += 1;
