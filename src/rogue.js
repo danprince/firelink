@@ -124,12 +124,14 @@ export class Entity {
   /**
    * @template T
    * @param {Rogue.Constructor<T>} constructor
-   * @return {InstanceType<T>}
+   * @returns {T}
    */
   get(constructor) {
-    return this.components.find(component => {
+    let component = this.components.find(component => {
       return component.constructor === constructor;
     });
+
+    return /** @type {T} */ (component);
   }
 
   /**
