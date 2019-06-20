@@ -69,9 +69,61 @@ class Glyph extends Component {
   }
 }
 
+function parse(string) {
+  let color = 1;
+  let parts = [];
+
+  while (string.length) {
+    let colorMatch = string.match(/^\[(\d+?)\]/);
+    let glyphMatch = string.match(/^\((\d+?)\)/);
+    let textMatch = string.match(/^[^\(\[]+/);
+
+    if (colorMatch) {
+      string = string.slice(colorMatch[0].length);
+      color = Number(colorMatch[1]);
+      continue;
+    }
+
+    else if (glyphMatch) {
+      string = string.slice(glyphMatch[0].length);
+      let glyph = Number(glyphMatch[1]);
+      parts.push({ glyph, color });
+      continue;
+    }
+
+    else if (textMatch) {
+      string = string.slice(textMatch[0].length);
+      let text = textMatch[0];
+      parts.push({ text, color });
+      continue;
+    }
+
+    else {
+      break;
+    }
+  }
+
+  return parts;
+}
+
 let Text = ({ children }) => {
-  // TODO: Parse children as formatted string of glyphs/colors
-  return h("span", null);
+  let parts = parse(children[0]);
+
+  return h("span", { class: "text" }, parts.map(part => {
+    if (part.glyph) {
+      return h(Glyph, { id: part.glyph, color: part.color });
+    }
+
+    if (part.text) {
+      let style = {
+        lineHeight: `${4 + scaleY(1)}px`,
+        height: scaleY(1),
+        color: color(part.color),
+      };
+
+      return h("span", { style }, part.text);
+    }
+  }));
 };
 
 let Box = ({
@@ -380,7 +432,7 @@ export class PopupManager extends Component {
             y: popup.y,
             width: popup.width,
             height: popup.height,
-            children: popup.body,
+            children: h(Text, {}, popup.body),
             onRequestClose: () => this.removePopup(popup),
           })
         ))
@@ -686,6 +738,7 @@ export function mount(selector, ui) {
       h(LogPreview, { ...app }),
       h(Console, { ...app }),
       h(Editor, { ...app }),
+      h(Text, {}, "[6](64)[1] Hello"),
       //h(Modal, {},
       //  h("div", null, `Hello world, welcome to my great modal.`),
       //  h(Button, null, "Ok"),
