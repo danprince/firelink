@@ -5,6 +5,6 @@ export default {
     2: { glyph: 32, color: 3, walkable: false, autotile: true },
   },
   actors: {
-    "player": { glyph: 64, color: 1, hp: 5, stamina: 3 }
+    "player": { glyph: 64, color: 1, hp: 5, stamina: 3, souls: 0 }
   }
 }
