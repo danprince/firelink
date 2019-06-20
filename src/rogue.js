@@ -174,6 +174,9 @@ export class Item extends Entity {
    */
   constructor(def) {
     super(def);
+
+    // Render items above entities
+    this.z = 1;
   }
 }
 
@@ -192,11 +195,12 @@ export class Actor extends Entity {
 
     this.maxHp = def.hp;
     this.hp = def.hp;
-
     this.maxStamina = def.stamina;
     this.stamina = def.stamina;
-
     this.souls = def.souls;
+
+    // Render actors above items
+    this.z = 2;
   }
 
   hasStamina() {
