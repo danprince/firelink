@@ -33,7 +33,7 @@ class Glyph extends Component {
   static toBase64(glyph, color, scale) {
     this.renderer.scale = scale;
     this.renderer.init();
-    this.renderer.console.put(glyph, color, 0, 0);
+    this.renderer.console.put(glyph, color, 0, 0, 0);
     this.renderer.draw();
     return this.renderer.canvas.toDataURL();
   }
