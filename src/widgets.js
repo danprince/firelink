@@ -7,6 +7,14 @@ import data from "./data.js";
 let classes = (...classNames) => classNames.filter(x => x).join(" ");
 let color = (index) => settings.renderer.colors[index];
 
+let scaleX = (x) => {
+  return x * settings.renderer.font.glyphWidth * settings.renderer.scale;
+};
+
+let scaleY = (y) => {
+  return y * settings.renderer.font.glyphHeight * settings.renderer.scale;
+};
+
 class Glyph extends Component {
   static cache = {};
 
@@ -75,21 +83,15 @@ let Box = ({
   align,
   ...rest
 }) => {
-  let { scale, font } = settings.renderer;
-
-  let scaleX = font.glyphWidth * scale;
-  let scaleY = font.glyphHeight * scale;
-
   let style = { ...rest.style };
 
   let fontOffsetPx = 4;
+  style.lineHeight = `${fontOffsetPx + scaleY(1)}px`;
+  style.minWidth = `${scaleX(1)}px`;
+  style.minHeight = `${scaleY(1)}px`;
 
-  style.lineHeight = `${fontOffsetPx + scaleY}px`;
-  style.minWidth = `${scaleX}px`;
-  style.minHeight = `${scaleX}px`;
-
-  if (width) style.width = width * scaleX;
-  if (height) style.height = height * scaleY;
+  if (width) style.width = scaleX(width);
+  if (height) style.height = scaleY(height);
   if (align) style.alignItems = align;
   if (justify) style.justifyContent = justify;
   if (direction) style.flexDirection = direction;
