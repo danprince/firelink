@@ -1,13 +1,9 @@
 import settings from "./settings.js";
-import { Emitter } from "./rogue.js";
+import { World, Emitter } from "./rogue.js";
 
 export class Font {
   /**
-   * @typedef {Object} FontConfig
-   * @property {string} url
-   * @property {number} columns
-   * @property {number} rows
-   * @param {FontConfig} config
+   * @param {RogueUI.FontConfig} config
    */
   constructor(config) {
     this.image = new Image();
@@ -70,13 +66,7 @@ export class Console {
 
 export class Renderer {
   /**
-   * @typedef {Object} RendererConfig
-   * @property {number} width
-   * @property {number} height
-   * @property {Font} font
-   * @property {string[]} palette
-   * @property {number} scale
-   * @param {RendererConfig}
+   * @param {RogueUI.RendererConfig<Font>} config
    */
   constructor({ width, height, font, palette, scale=1 }) {
     this.palette = palette;
@@ -116,15 +106,17 @@ export class Renderer {
 
 export class CanvasRenderer extends Renderer {
   /**
-   * @param {RendererConfig} config
+   * @param {RogueUI.RendererConfig<Font>} config
    */
   constructor(config) {
     super(config);
     this.canvas = document.createElement("canvas");
     this.ctx = this.canvas.getContext("2d");
-    this.fontColorCache = [];
     this.font.image.addEventListener("load", this.handleFontLoad);
     this.resolution = window.devicePixelRatio || 1;
+
+    /** @type {HTMLCanvasElement[]} */
+    this.fontColorCache = [];
   }
 
   handleFontLoad = () => {
@@ -238,26 +230,37 @@ export class CanvasRenderer extends Renderer {
 
 export class Input {
   groups = [new Set(["default"])];
+
+  /**
+   * @type {RogueUI.CommandDef[]}
+   */
   commands = [];
+
   listeners = [];
 
   getCurrentGroup() {
     return this.groups[this.groups.length - 1];
   }
 
-  push(id, exclusive=false) {
+  /**
+   * @param {string} mode
+   */
+  push(mode, exclusive=false) {
     let currentGroup = this.getCurrentGroup();
 
     if (exclusive) {
-      this.groups.push(new Set([id]));
+      this.groups.push(new Set([mode]));
     } else {
-      currentGroup.add(id);
+      currentGroup.add(mode);
     }
   }
 
-  pop(id) {
+  /**
+   * @param {string} mode
+   */
+  pop(mode) {
     let group = this.getCurrentGroup();
-    group.delete(id);
+    group.delete(mode);
 
     if (group.size === 0) {
       this.groups.pop();
@@ -272,12 +275,20 @@ export class Input {
     this.listeners = this.listeners.filter(other => other !== listener);
   }
 
+  /**
+   * @param {string} group
+   * @param {string} name
+   * @param {string} action
+   */
   bind(group, name, action) {
     for (let button of settings.controls[name]) {
       this.commands.push({ group, button, action });
     }
   }
 
+  /**
+   * @param {KeyboardEvent | MouseEvent} event
+   */
   handleEvent = (event) => {
     if (event instanceof KeyboardEvent) {
       this.fire(event.key);
@@ -292,6 +303,9 @@ export class Input {
     }
   }
 
+  /**
+   * @param {string} button
+   */
   fire(button) {
     let group = this.getCurrentGroup();
 
@@ -306,6 +320,9 @@ export class Input {
     }
   }
 
+  /**
+   * @param {string} action
+   */
   trigger(action) {
     for (let listener of this.listeners) {
       listener(action);
@@ -341,6 +358,9 @@ export class UI {
     }),
   });
 
+  /**
+   * @param {World} world
+   */
   constructor(world) {
     this.world = world;
 
@@ -379,6 +399,9 @@ export class UI {
     document.body.style.color = settings.renderer.colors[1];
   }
 
+  /**
+   * @param {string} text
+   */
   message(text) {
     this.events.emit("set-message", text);
   }
@@ -387,16 +410,30 @@ export class UI {
     this.events.emit("refresh");
   }
 
-  push(group, exclusive=false) {
-    this.input.push(group, exclusive);
+  popup(popup) {
+    this.events.emit("popup", popup);
+  }
+
+  /**
+   * @param {string} mode
+   */
+  push(mode, exclusive=false) {
+    this.input.push(mode, exclusive);
     this.events.emit("set-group");
   }
 
-  pop(group) {
-    this.input.pop(group);
+  /**
+   * @param {string} mode
+   */
+  pop(mode) {
+    this.input.pop(mode);
     this.events.emit("set-group");
   }
 
+  /**
+   * @param {number} screenX
+   * @param {number} screenY
+   */
   screenToWorld(screenX, screenY) {
     let { x, y } = this.renderer.screenToWorld(screenX, screenY);
 
@@ -406,6 +443,10 @@ export class UI {
     };
   }
 
+  /**
+   * @param {number} worldX
+   * @param {number} worldY
+   */
   worldToScreen(worldX, worldY) {
     return this.renderer.worldToScreen(
       worldX - this.world.camera.x,

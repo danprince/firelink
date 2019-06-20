@@ -6,7 +6,7 @@ export class Emitter {
 
   /**
    * @param {string | Symbol} type
-   * @param {any} data
+   * @param {any} [data]
    */
   emit(type, data) {
     let handlers = this.handlers[type];
@@ -38,13 +38,19 @@ export class Emitter {
   }
 }
 
-
 export class Component {
-  entity = null;
+  constructor() {
+    /** @type {Entity | null} */
+    this.entity = null;
+  }
 
   onEnter() {}
   onExit() {}
-  onEvent() {}
+
+  /**
+   * @param {Rogue.Event} event
+   */
+  onEvent(event) {}
 }
 
 export class Entity {
@@ -55,10 +61,7 @@ export class Entity {
   }
 
   /**
-   * @typedef {Object} EntityDef
-   * @property {number} glyph
-   * @property {number} color
-   * @param {EntityDef} def
+   * @param {Rogue.EntityDef} def
    */
   constructor(def) {
     this.def = def;
@@ -81,6 +84,9 @@ export class Entity {
     this.components = [];
   }
 
+  /**
+   * @param {Rogue.Event} event
+   */
   send(event) {
     if (typeof event === "string") {
       event = { type: event };
@@ -91,6 +97,9 @@ export class Entity {
     }
   }
 
+  /**
+   * @param {Component} component
+   */
   add(component) {
     this.components.push(component);
     component.entity = this;
@@ -100,6 +109,9 @@ export class Entity {
     }
   }
 
+  /**
+   * @param {Component} component
+   */
   delete(component) {
     if (this.active) {
       component.onExit();
@@ -109,12 +121,21 @@ export class Entity {
     Utils.removeFromList(this.components, component);
   }
 
+  /**
+   * @template T
+   * @param {Rogue.Constructor<T>} constructor
+   * @return {InstanceType<T>}
+   */
   get(constructor) {
     return this.components.find(component => {
       return component.constructor === constructor;
     });
   }
 
+  /**
+   * @param {Rogue.Constructor<any>} constructor
+   * @return {boolean}
+   */
   has(constructor) {
     return this.components.some(component => {
       return component.constructor === constructor;
@@ -167,13 +188,12 @@ export class Entity {
 
 export class Item extends Entity {
   /**
-   * @typedef {Object} ItemDef
-   * @property {number} glyph
-   * @property {number} color
-   * @param {ItemDef} def
+   * @param {Rogue.ItemDef} def
    */
   constructor(def) {
     super(def);
+
+    this.def = def;
 
     // Render items above entities
     this.z = 1;
@@ -182,17 +202,12 @@ export class Item extends Entity {
 
 export class Actor extends Entity {
   /**
-   * @typedef {Object} ActorDef
-   * @property {number} glyph
-   * @property {number} color
-   * @property {number} hp
-   * @property {number} stamina
-   * @property {number} souls
-   * @param {ActorDef} def
+   * @param {Rogue.ActorDef} def
    */
   constructor(def) {
     super(def);
 
+    this.def = def;
     this.maxHp = def.hp;
     this.hp = def.hp;
     this.maxStamina = def.stamina;
@@ -244,7 +259,7 @@ export class Actor extends Entity {
   }
 
   /**
-   * @param {number} value
+   * @param {number} amount
    */
   changeHp(amount) {
     this.setHp(this.hp + amount);
@@ -258,7 +273,7 @@ export class Actor extends Entity {
   }
 
   /**
-   * @param {number} value
+   * @param {number} amount
    */
   changeStamina(amount) {
     this.setStamina(this.stamina + amount);
@@ -273,9 +288,9 @@ export class Actor extends Entity {
 class Player extends Actor {
   addActionAsync = () => {};
 
-  onAfterAction(action) {
-    if (action.message) {
-      this.world.message(action.message);
+  onAfterAction(result) {
+    if (result.message) {
+      this.world.message(result.message);
     }
   }
 
@@ -292,9 +307,17 @@ class Player extends Actor {
 }
 
 export let Random = {
+  /**
+   * @template T
+   * @param {T[]} items
+   */
   pick(...items) {
     return items[Math.floor(Math.random() * items.length)];
   },
+
+  /**
+   * @param {number} size
+   */
   int(size) {
     return Math.floor(Math.random() * size);
   }
@@ -312,6 +335,9 @@ export let Utils = {
     return val;
   },
 
+  /**
+   * @param {number} ms
+   */
   sleep(ms) {
     return new Promise(resolve => setTimeout(resolve, ms));
   },
@@ -346,14 +372,6 @@ export let Utils = {
   }
 };
 
-/**
- * @typedef {Object} Tile
- * @property {number} type
- * @property {number} glyph
- * @property {number} color
- * @property {number} light
- */
-
 export class TileMap {
 
   /**
@@ -364,7 +382,7 @@ export class TileMap {
     this.width = width;
     this.height = height;
 
-    /** @type {Tile[]} */
+    /** @type {Rogue.Tile[]} */
     this.tiles = new Array(this.width * this.height);
   }
 
@@ -466,7 +484,7 @@ export class World {
    * @param {number} y
    */
   getEntityAt(x, y) {
-    for (let [_, entity] of this.entities) {
+    for (let [, entity] of this.entities) {
       if (entity.x === x && entity.y === y) {
         return entity;
       }
@@ -497,6 +515,10 @@ export class World {
     }
   }
 
+  /**
+   * @param {Entity} entity
+   * @param {any} action
+   */
   tryAction(entity, action, tries=0) {
     if (tries > settings.rules.maxActionTries) {
       this.debug(`Entity took too many tries`, entity, action);
@@ -514,12 +536,18 @@ export class World {
     return result;
   }
 
+  /**
+   * @param {any[]} args
+   */
   debug(...args) {
     if (settings.debug) {
       console.warn(...args);
     }
   }
 
+  /**
+   * @param {string} text
+   */
   message(text) {
     this.events.emit("message", text);
   }
