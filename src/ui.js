@@ -39,10 +39,14 @@ export class Console {
    * @param {number} x
    * @param {number} y
    */
-  put(glyph, color, x, y) {
+  put(glyph, color, x, y, z) {
     let index = x + y * this.width;
-    this.glyphs[index] = glyph;
-    this.colors[index] = color;
+
+    if (z >= this.depth[index]) {
+      this.glyphs[index] = glyph;
+      this.colors[index] = color;
+      this.depth[index] = z;
+    }
   }
 
   /**
@@ -54,11 +58,13 @@ export class Console {
     this.height = height;
     this.glyphs = new Uint8Array(this.width * this.height);
     this.colors = new Uint8Array(this.width * this.height);
+    this.depth = new Uint8Array(this.width * this.height);
   }
 
   clear() {
     this.glyphs.fill(0);
     this.colors.fill(0);
+    this.depth.fill(0);
   }
 }
 
@@ -193,6 +199,9 @@ export class CanvasRenderer extends Renderer {
     }
 
     this.ctx.restore();
+
+    // Clear depths before next render
+    this.console.depth.fill(0);
 
     // Swap the glyph/color buffers between the screen console and the memory
     // one. This allows us to check whether the contents of the memory buffer

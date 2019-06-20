@@ -155,7 +155,9 @@ function init() {
 
   world.player.x = 3;
   world.player.y = 3;
+  world.player.z = 3;
   world.spawn(world.player);
+
   world.camera.target = world.player.id;
 
   for (let i = 0; i < 20; i++) {

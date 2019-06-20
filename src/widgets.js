@@ -572,9 +572,9 @@ class Viewport extends Component {
         let color = tile.color || def.color;
 
         if (tile) {
-          console.put(glyph, color, x, y);
+          console.put(glyph, color, x, y, 0);
         } else {
-          console.put(0, 0, x, y);
+          console.put(0, 0, x, y, 0);
         }
       }
     }
@@ -582,12 +582,13 @@ class Viewport extends Component {
     for (let [_, entity] of world.entities) {
       let x = entity.x - camera.x;
       let y = entity.y - camera.y;
+      let z = entity.z;
 
       if (x < 0 || y < 0 || x >= console.width || y >= console.height) {
         continue;
       }
 
-      console.put(entity.glyph, entity.color, x, y);
+      console.put(entity.glyph, entity.color, x, y, z);
     }
 
     renderer.draw();
