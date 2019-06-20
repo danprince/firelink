@@ -250,14 +250,14 @@ export class Actor extends Entity {
    * @param {number} value
    */
   setStamina(value) {
-    actor.stamina = Utils.clamp(0, value, actor.maxStamina);
+    this.stamina = Utils.clamp(0, value, this.maxStamina);
   }
 
   /**
    * @param {number} value
    */
   changeStamina(amount) {
-    this.setStamina(actor.stamina + amount);
+    this.setStamina(this.stamina + amount);
   }
 
   takeTurn() {
