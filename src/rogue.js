@@ -393,10 +393,6 @@ export class TileMap {
     return this.tiles[x + y * this.width] = tile;
   }
 
-  /**
-   * @typedef {{[K in keyof typeof TileMap.AUTOTILING_PATTERNS]}} Rules
-   * @param {Rules} rules
-   */
   autotile(x0=0, y0=0, x1=this.width, y1=this.height) {
     for (let x = x0; x <= x1; x++) {
       for (let y= y0; y <= y1; y++) {
