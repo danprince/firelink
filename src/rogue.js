@@ -379,18 +379,12 @@ export class TileMap {
    * @param {Rules} rules
    */
   autotile(x0=0, y0=0, x1=this.width, y1=this.height) {
-    let rules = data.autotiling;
-
     for (let x = x0; x <= x1; x++) {
       for (let y= y0; y <= y1; y++) {
         let tile = this.get(x, y);
         if (tile == null) continue;
-        let rule = rules[tile.type];
-        if (rule == null) continue;
         let def = data.tiles[tile.type];
-        if (def == null) continue;
-        let pattern = TileMap.AUTOTILING_PATTERNS[rule];
-        if (pattern == null) continue;
+        if (def == null || !def.autotile) continue;
 
         let n = this.get(x, y - 1);
         let s = this.get(x, y + 1);
@@ -404,14 +398,9 @@ export class TileMap {
           Number(w && w.type === tile.type) << 0
         );
 
-        tile.glyph = def.glyph + pattern[mask];
+        tile.glyph = def.glyph + mask;
       }
     }
-  }
-
-  static AUTOTILING_PATTERNS = {
-    "wall": { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 5, 6: 6, 7: 7, 8: 8, 9: 9, 10: 10, 11: 11, 12: 12, 13: 13, 14: 14, 15: 15, },
-    "tile": { 0: 0, 1: 1, 2: 2, 3: 3, 4: 4, 5: 9, 6: 5, 7: 9, 8: 6, 9: 7, 10: 9, 11: 9, 12: 8, 13: 9, 14: 9, 15: 9 }
   }
 }
 
