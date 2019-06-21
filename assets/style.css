@@ -91,6 +91,7 @@ canvas {
 
 .viewport {
   position: relative;
+  overflow: hidden;
 }
 
 .popup-manager {
@@ -101,4 +102,8 @@ canvas {
 
 .popup {
   position: absolute;
+}
+
+.text img {
+  vertical-align: middle;
 }
