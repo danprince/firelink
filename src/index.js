@@ -4,7 +4,7 @@ import { mount } from "./widgets.js";
 import * as Actions from "./actions.js";
 import * as Components from "./components.js";
 
-class Game {
+export class Game {
   world = new World();
   ui = new UI(this.world);
 
@@ -22,6 +22,7 @@ let game = new Game();
 let { world, ui } = game;
 world.events.on("message", text => ui.message(text));
 
+// TODO: Should these live in the data file?
 ui.input.bind("default", "restart", "restart");
 ui.input.bind("default", "north", "move-north");
 ui.input.bind("default", "east", "move-east");
@@ -163,10 +164,14 @@ function init() {
   for (let i = 0; i < 20; i++) {
     let glyph = Random.pick(64, 65, 66, 67, 68, 69, 70, 71, 72);
     let color = Random.pick(1, 2, 3, 4, 5, 6);
-    let entity = new Actor({ glyph, color });
+    // @ts-ignore
+    let entity = new Actor({ glyph, color, hp: Random.int(10) });
     entity.add(new Components.Wandering);
-    entity.x = Random.int(world.map.width);
-    entity.y = Random.int(world.map.height);
+    entity.add(new Components.Corpse);
+    entity.add(new Components.Vitals);
+    entity.add(new Components.Bleeding);
+    entity.x = 1 + Random.int(world.map.width - 2);
+    entity.y = 1 + Random.int(world.map.height - 2);
     world.spawn(entity);
   }
 }
@@ -177,3 +182,10 @@ ui.events.on("ready", () => {
   // Mount the UI and start the game
   mount("#root", ui);
 });
+
+let globals = {
+  Random,
+  rame: game,
+};
+
+Object.assign(window, globals);

@@ -1,23 +1,18 @@
 import data from "./data.js";
+import { succeed, fail, alternate } from "./rogue.js";
 
-function fail(message) {
-  return { ok: false, message };
-}
-
-function succeed(message) {
-  return { ok: true, message };
-}
-
-function alternate(action) {
-  return { ok: false, alt: action };
-}
-
-export let Rest = (actor, game) => {
+/**
+ * @type {Rogue.Action}
+ */
+export let Rest = () => {
   return succeed();
 };
 
-export let MoveTo = (x, y) => (actor, game) => {
-  let tile = game.map.get(x, y);
+/**
+ * @type {(x: number, y: number) => Rogue.Action}
+ */
+export let MoveTo = (x, y) => (actor) => {
+  let tile = actor.world.map.get(x, y);
 
   if (tile == null) {
     return fail("There's nothing here!");
@@ -34,6 +29,9 @@ export let MoveTo = (x, y) => (actor, game) => {
   }
 };
 
+/**
+ * @type {(dx: number, dy: number) => Rogue.Action}
+ */
 export let MoveBy = (dx, dy) => (actor) => {
   return alternate(
     MoveTo(actor.x + dx, actor.y + dy)

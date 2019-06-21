@@ -1,3 +1,8 @@
+// @ts-nocheck
+
+// Can't enable sane typechecking here because of the untyped Preact
+// import.
+
 import { h, Component, render } from "https://cdn.pika.dev/preact/v8";
 import { Font, CanvasRenderer } from "./ui.js";
 import { Utils } from "./rogue.js";
@@ -5,15 +10,16 @@ import settings from "./settings.js";
 import data from "./data.js";
 
 let classes = (...classNames) => classNames.filter(x => x).join(" ");
-let color = (index) => settings.renderer.colors[index];
 
-let scaleX = (x) => {
-  return x * settings.renderer.font.glyphWidth * settings.renderer.scale;
-};
+let color = (index) => settings["renderer.colors"][index];
 
-let scaleY = (y) => {
-  return y * settings.renderer.font.glyphHeight * settings.renderer.scale;
-};
+let scaleX = (x) => x *
+  settings["renderer.font.glyphWidth"] *
+  settings["renderer.scale"];
+
+let scaleY = (y) => y *
+  settings["renderer.font.glyphHeight"] *
+  settings["renderer.scale"];
 
 class Glyph extends Component {
   static cache = {};
@@ -22,11 +28,11 @@ class Glyph extends Component {
     width: 1,
     height: 1,
     scale: 1,
-    palette: settings.renderer.colors,
+    palette: settings["renderer.colors"],
     font: new Font({
-      url: settings.renderer.font.url,
-      glyphWidth: settings.renderer.font.glyphWidth,
-      glyphHeight: settings.renderer.font.glyphHeight,
+      url: settings["renderer.font.url"],
+      glyphWidth: settings["renderer.font.glyphWidth"],
+      glyphHeight: settings["renderer.font.glyphHeight"],
     }),
   });
 
@@ -51,7 +57,7 @@ class Glyph extends Component {
       return null;
     }
 
-    let { id, color, scale=settings.renderer.scale } = this.props;
+    let { id, color, scale=settings["renderer.scale"] } = this.props;
     let key = `${id}-${color}-${scale}`;
 
     if (Glyph.cache[key] == null) {
@@ -268,7 +274,7 @@ class Console extends Component {
 }
 
 let Palette = () => {
-  let colors = settings.renderer.colors;
+  let colors = settings["renderer.colors"];
 
   return (
     h(Box, { class: "palette", height: 1 },
@@ -715,7 +721,7 @@ class Status extends Component {
 }
 
 export function mount(selector, ui) {
-  // TODO: Make this available via context
+  // todo: make this available via context
   let app = {
     ui: ui,
     dispatch(name, ...args) {
@@ -725,7 +731,7 @@ export function mount(selector, ui) {
 
   let root = (
     h("div", { class: "ui" },
-      settings.debug
+      settings["debug"]
         ? h(Debug, { ...app })
         : null,
 

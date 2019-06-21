@@ -8,26 +8,49 @@ declare namespace Rogue {
     new(...args: any[]): T
   }
 
-  export type EntityDef = {
+  export type Tile = {
+    type: number,
+    glyph?: number,
+    color?: number,
+    light?: number,
+  }
+
+  export type Action = (
+    actor: import("./rogue").Actor
+  ) => ActionResult;
+
+  export type ActionResult = {
+    ok: boolean,
+    message?: string,
+    alt?: Action,
+  };
+}
+
+declare namespace Defs {
+  export type Entity = {
     glyph: number,
     color: number,
   }
 
-  export type ItemDef = EntityDef & {
+  export type Item = Entity & {
 
   }
 
-  export type ActorDef = EntityDef & {
+  export type Actor = Entity & {
     hp: number,
     stamina: number,
     souls: number,
   }
 
   export type Tile = {
-    type: number,
-    glyph?: number,
-    color?: number,
-    light?: number,
+    glyph: number,
+    color: number,
+    walkable?: boolean,
+    autotile?: boolean,
+  }
+
+  export type Dict<T> = {
+    [key: string]: T
   }
 }
 
@@ -38,10 +61,10 @@ declare namespace RogueUI {
     glyphHeight: number,
   }
 
-  export type RendererConfig<Font> = {
+  export type RendererConfig = {
     width: number,
     height: number,
-    font: Font,
+    font: import("./ui").Font,
     palette: { [key: number]: string },
     scale?: number,
   }

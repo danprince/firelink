@@ -66,7 +66,7 @@ export class Console {
 
 export class Renderer {
   /**
-   * @param {RogueUI.RendererConfig<Font>} config
+   * @param {RogueUI.RendererConfig} config
    */
   constructor({ width, height, font, palette, scale=1 }) {
     this.palette = palette;
@@ -106,7 +106,7 @@ export class Renderer {
 
 export class CanvasRenderer extends Renderer {
   /**
-   * @param {RogueUI.RendererConfig<Font>} config
+   * @param {RogueUI.RendererConfig} config
    */
   constructor(config) {
     super(config);
@@ -143,7 +143,7 @@ export class CanvasRenderer extends Renderer {
   }
 
   draw() {
-    const DEBUG = settings.debug;
+    const DEBUG = settings["debug"];
 
     let calls = 0;
 
@@ -281,7 +281,7 @@ export class Input {
    * @param {string} action
    */
   bind(group, name, action) {
-    for (let button of settings.controls[name]) {
+    for (let button of settings["controls"][name]) {
       this.commands.push({ group, button, action });
     }
   }
@@ -347,14 +347,14 @@ export class UI {
   ready = false;
 
   renderer = new CanvasRenderer({
-    width: settings.renderer.width,
-    height: settings.renderer.height,
-    scale: settings.renderer.scale,
-    palette: settings.renderer.colors,
+    width: settings["renderer.width"],
+    height: settings["renderer.height"],
+    scale: settings["renderer.scale"],
+    palette: settings["renderer.colors"],
     font: new Font({
-      url: settings.renderer.font.url,
-      glyphWidth: settings.renderer.font.glyphWidth,
-      glyphHeight: settings.renderer.font.glyphHeight,
+      url: settings["renderer.font.url"],
+      glyphWidth: settings["renderer.font.glyphWidth"],
+      glyphHeight: settings["renderer.font.glyphHeight"],
     }),
   });
 
@@ -395,8 +395,8 @@ export class UI {
       this.runCommand(event, []);
     });
 
-    document.body.style.background = settings.renderer.colors[0];
-    document.body.style.color = settings.renderer.colors[1];
+    document.body.style.background = settings["renderer.colors"][0];
+    document.body.style.color = settings["renderer.colors"][1];
   }
 
   /**

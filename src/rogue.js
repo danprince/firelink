@@ -38,17 +38,38 @@ export class Emitter {
   }
 }
 
+/**
+ * @template Target
+ */
 export class Component {
-  constructor() {
-    /** @type {Entity | null} */
-    this.entity = null;
+  static target = null;
+
+  /**
+   * @type {Target}
+   */
+  entity = null;
+
+  /**
+   * Checks whether the component can be added to a specific entity. By
+   * default it checks that the entity is an instanceof the component's
+   * static "target" property (if provided).
+   *
+   * @param {Entity} entity
+   */
+  rules(entity) {
+    let constructor = /** @type {typeof Component} */ (this.constructor);
+
+    return (
+      constructor.target == null ||
+      entity instanceof constructor.target
+    );
   }
 
   onEnter() {}
   onExit() {}
 
   /**
-   * @param {Rogue.Event} event
+   * @param {Rogue.Event} [event]
    */
   onEvent(event) {}
 }
@@ -61,7 +82,7 @@ export class Entity {
   }
 
   /**
-   * @param {Rogue.EntityDef} def
+   * @param {Defs.Entity} def
    */
   constructor(def) {
     this.def = def;
@@ -85,7 +106,7 @@ export class Entity {
   }
 
   /**
-   * @param {Rogue.Event} event
+   * @param {Rogue.Event | string} event
    */
   send(event) {
     if (typeof event === "string") {
@@ -101,6 +122,11 @@ export class Entity {
    * @param {Component} component
    */
   add(component) {
+    if (!component.rules(this)) {
+      console.warn("Can't add")
+      return;
+    }
+
     this.components.push(component);
     component.entity = this;
 
@@ -131,7 +157,7 @@ export class Entity {
       return component.constructor === constructor;
     });
 
-    return /** @type {T} */ (component);
+    return /** @type {?} */ (component);
   }
 
   /**
@@ -144,6 +170,9 @@ export class Entity {
     });
   }
 
+  /**
+   * @return {Rogue.Action | Promise<Rogue.Action>}
+   */
   takeTurn() {
     // Default action is to rest
     let action = () => ({ ok: true });
@@ -179,18 +208,24 @@ export class Entity {
     this.send("after-turn");
   }
 
+  /**
+   * @param {Rogue.Action} action
+   */
   onBeforeAction(action) {
-    this.send("before-action", action);
+    this.send({ type: "before-action", action });
   }
 
+  /**
+   * @param {Rogue.Action} action
+   */
   onAfterAction(action) {
-    this.send("after-action", action);
+    this.send({ type: "after-action", action });
   }
 }
 
 export class Item extends Entity {
   /**
-   * @param {Rogue.ItemDef} def
+   * @param {Defs.Item} def
    */
   constructor(def) {
     super(def);
@@ -204,7 +239,7 @@ export class Item extends Entity {
 
 export class Actor extends Entity {
   /**
-   * @param {Rogue.ActorDef} def
+   * @param {Defs.Actor} def
    */
   constructor(def) {
     super(def);
@@ -237,12 +272,8 @@ export class Actor extends Entity {
    * @param {number} y
    */
   moveTo(x, y) {
-    let tile = this.engine.map.get(x, y);
-
-    if (tile && tile.walkable) {
-      this.x = x;
-      this.y = y;
-    }
+    this.x = x;
+    this.y = y;
   }
 
   /**
@@ -257,7 +288,11 @@ export class Actor extends Entity {
    * @param {number} value
    */
   setHp(value) {
-    actor.hp = Utils.clamp(0, value, this.maxHp);
+    this.hp = Utils.clamp(0, value, this.maxHp);
+
+    if (this.hp === 0) {
+      this.send("death");
+    }
   }
 
   /**
@@ -288,7 +323,10 @@ export class Actor extends Entity {
 }
 
 class Player extends Actor {
-  addActionAsync = () => {};
+  /**
+   * @param {Rogue.Action} action
+   */
+  addActionAsync = (action) => {};
 
   onAfterAction(result) {
     if (result.message) {
@@ -322,6 +360,24 @@ export let Random = {
    */
   int(size) {
     return Math.floor(Math.random() * size);
+  },
+
+  /**
+   * @param {string} code - 1d6, 2d10 etc
+   */
+  dice(code) {
+    let parts = code.split("d");
+
+    let count = Number(parts[0]);
+    let sides = Number(parts[1]);
+
+    let total = 0;
+
+    for (let i = 0; i < count; i++) {
+      total += 1 + Random.int(sides);
+    }
+
+    return total;
   }
 };
 
@@ -403,7 +459,7 @@ export class TileMap {
   /**
    * @param {number} x
    * @param {number} y
-   * @param {Tile} tile
+   * @param {Rogue.Tile} tile
    */
   set(x, y, tile) {
     if (x < 0 || y < 0 || x >= this.width || y >= this.height) {
@@ -441,8 +497,8 @@ export class TileMap {
 
 export class World {
   map = new TileMap(
-    settings.map.width,
-    settings.map.height,
+    settings["map.width"],
+    settings["map.height"],
   );
 
   events = new Emitter();
@@ -499,14 +555,21 @@ export class World {
 
   async start() {
     while (true) {
-      for (let [_, entity] of this.entities) {
+      for (let [, entity] of this.entities) {
         entity.onBeforeTurn();
 
         // Try actions until one succeeds
         while (true) {
           let action = await entity.takeTurn();
           let result = this.tryAction(entity, action);
-          if (result.ok) break;
+
+          if (entity instanceof Player) {
+            if (result.ok) break;
+          } else {
+            // Prevent non-player characters getting stuck if they
+            // are unable to produce an action
+            break;
+          }
         }
 
         entity.onAfterTurn();
@@ -522,7 +585,7 @@ export class World {
    * @param {any} action
    */
   tryAction(entity, action, tries=0) {
-    if (tries > settings.rules.maxActionTries) {
+    if (tries > settings["rules.maxActionTries"]) {
       this.debug(`Entity took too many tries`, entity, action);
       return { ok: true };
     }
@@ -542,7 +605,7 @@ export class World {
    * @param {any[]} args
    */
   debug(...args) {
-    if (settings.debug) {
+    if (settings["debug"]) {
       console.warn(...args);
     }
   }
@@ -553,4 +616,28 @@ export class World {
   message(text) {
     this.events.emit("message", text);
   }
+}
+
+/**
+ * @param {string} [message]
+ * @return {Rogue.ActionResult}
+ */
+export function succeed(message) {
+  return { ok: true, message };
+}
+
+/**
+ * @param {string} [message]
+ * @return {Rogue.ActionResult}
+ */
+export function fail(message) {
+  return { ok: false, message };
+}
+
+/**
+ * @param {Rogue.Action} action
+ * @return {Rogue.ActionResult}
+ */
+export function alternate(action) {
+  return { ok: false, alt: action };
 }
