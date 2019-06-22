@@ -9,41 +9,31 @@ export default {
   "renderer.font.glyphWidth": 10,
   "renderer.font.glyphHeight": 10,
   "renderer.colors": [
-    "#222321", // 0 - black
-    "#eaeaea", // 1 - white
-    "#a33333", // 2 - red
-    "#419562", // 3 - green
-    "#698cea", // 4 - blue
-    "magenta", // 5 - reserved
-    "magenta", // 6 - reserved
-    "magenta", // 7 - reserved
-
-    // greens (8-11)
-    "#2a3127",
+    "#222321", // 0 black
+    "#eaeaea", // 1 white
+    "#a33333", // 2 red
+    "#419562", // 3 green
+    "#698cea", // 4 blue
+    "#177c76", // 5 aqua
+    "magenta", // 6 reserved
+    "magenta", // 7 reserved
+    "#2a3127", // 8-11 greens
     "#363e32",
     "#555d51",
     "#dbe6d6",
-
-    // greys (12-15)
-    "#1d252a",
+    "#1d252a", // 12-15 greys
     "#2a3139",
     "#485263",
     "#bfd4ea",
-
-    // purples (16-19)
-    "#2a1728",
-    "#392439",
-    "#553354",
-    "#eaa1d1",
-
-    // browns (20-23)
-    "#2a1717",
-    "#392424",
+    "#2e2439", // 16-19 purples
+    "#473355",
+    "#492a80",
+    "#7445c6",
+    "#392424", // 20-23 browns
     "#553333",
-    "#eaa1a1",
-
-    // oranges (24-27)
-    "#804315",
+    "#784d4d",
+    "#eab1a1",
+    "#804315", // 24-27 oranges
     "#bf6b07",
     "#cd8b3c",
     "#ffc14a",
