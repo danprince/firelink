@@ -1,42 +1,6 @@
 import settings from "./settings.js";
 import data from "./data.js";
-
-export class Emitter {
-  handlers = {};
-
-  /**
-   * @param {string | Symbol} type
-   * @param {any} [data]
-   */
-  emit(type, data) {
-    let handlers = this.handlers[type];
-
-    if (handlers) {
-      for (let handler of handlers) {
-        handler(data);
-      }
-    }
-  }
-
-  /**
-   * @param {string | Symbol} type
-   * @param {(data: any) => void} handler
-   */
-  on(type, handler) {
-    this.handlers[type] = this.handlers[type] || [];
-    this.handlers[type].push(handler);
-  }
-
-  /**
-   * @param {string | Symbol} type
-   * @param {(data: any) => void} handler
-   */
-  off(type, handler) {
-    if (type in this.handlers) {
-      Utils.removeFromList(this.handlers[type], handler);
-    }
-  }
-}
+import * as Utils from "./utils.js";
 
 /**
  * @template Target
@@ -217,9 +181,17 @@ export class Entity {
 
   /**
    * @param {Rogue.Action} action
+   * @param {Rogue.ActionResult} result
    */
-  onAfterAction(action) {
-    this.send({ type: "after-action", action });
+  onAfterAction(action, result) {
+    this.send({ type: "after-action", action, result });
+  }
+
+  /**
+   * @param {Entity} other
+   */
+  distance(other) {
+    return Utils.distance(this.x, this.y, other.x, other.y);
   }
 }
 
@@ -328,7 +300,11 @@ class Player extends Actor {
    */
   addActionAsync = (action) => {};
 
-  onAfterAction(result) {
+  /**
+   * @param {Rogue.Action} action
+   * @param {Rogue.ActionResult} result
+   */
+  onAfterAction(action, result) {
     if (result.message) {
       this.world.message(result.message);
     }
@@ -378,55 +354,6 @@ export let Random = {
     }
 
     return total;
-  }
-};
-
-export let Utils = {
-  /**
-   * @param {number} min
-   * @param {number} val
-   * @param {number} max
-   */
-  clamp(min, val, max) {
-    if (val < min) return min;
-    if (val > max) return max;
-    return val;
-  },
-
-  /**
-   * @param {number} ms
-   */
-  sleep(ms) {
-    return new Promise(resolve => setTimeout(resolve, ms));
-  },
-
-  /**
-   * @template T
-   * @param {T[]} list
-   * @param {T} item
-   */
-  removeFromList(list, item) {
-    for (let i = 0; i < list.length; i++) {
-      if (list[i] === item) {
-        list.splice(i, 1);
-        return true;
-      }
-    }
-
-    return false;
-  },
-
-  /**
-   * @param {number} n
-   */
-  range(n) {
-    let nums = [];
-
-    for (let i = 0; i < n; i++) {
-      nums.push(i);
-    }
-
-    return nums;
   }
 };
 
@@ -511,7 +438,7 @@ export class World {
     settings["map.height"],
   );
 
-  events = new Emitter();
+  events = new Utils.Emitter();
 
   /** @type {Map<number, Entity>} */
   entities = new Map();
@@ -559,8 +486,33 @@ export class World {
     }
   }
 
+  /**
+   * @param {number} x
+   * @param {number} y
+   * @return {Entity[]}
+   */
+  getEntitiesAt(x, y) {
+    let entities = [];
+
+    for (let [, entity] of this.entities) {
+      if (entity.x === x && entity.y === y) {
+        entities.push(entity);
+      }
+    }
+
+    return entities;
+  }
+
   getEntityAtCursor() {
     return this.cursor && this.getEntityAt(this.cursor.x, this.cursor.y);
+  }
+
+  getEntitiesAtCursor() {
+    if (this.cursor) {
+      return this.getEntitiesAt(this.cursor.x, this.cursor.y)
+    } else {
+      return [];
+    }
   }
 
   async start() {
@@ -586,7 +538,7 @@ export class World {
       }
 
       this.turns += 1;
-      this.events.emit("turn");
+      this.events.emit("turn", this.turns);
     }
   }
 
@@ -602,7 +554,7 @@ export class World {
 
     entity.onBeforeAction(action);
     let result = action(entity, this);
-    entity.onAfterAction(result);
+    entity.onAfterAction(action, result);
 
     if (result.alt) {
       return this.tryAction(entity, result.alt, tries + 1);

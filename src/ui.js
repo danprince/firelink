@@ -1,5 +1,6 @@
 import settings from "./settings.js";
-import { World, Emitter } from "./rogue.js";
+import { World } from "./rogue.js";
+import { Emitter } from "./utils.js";
 
 export class Font {
   /**
@@ -114,6 +115,7 @@ export class CanvasRenderer extends Renderer {
     this.ctx = this.canvas.getContext("2d");
     this.font.image.addEventListener("load", this.handleFontLoad);
     this.resolution = window.devicePixelRatio || 1;
+    this.ready = this.font.image.complete;
 
     /** @type {HTMLCanvasElement[]} */
     this.fontColorCache = [];
@@ -239,6 +241,10 @@ export class Input {
   listeners = [];
 
   getCurrentGroup() {
+    return this.groups[this.groups.length - 1];
+  }
+
+  getActiveModes() {
     return this.groups[this.groups.length - 1];
   }
 
@@ -419,7 +425,9 @@ export class UI {
    */
   push(mode, exclusive=false) {
     this.input.push(mode, exclusive);
-    this.events.emit("set-group");
+
+    let modes = Array.from(this.input.getActiveModes());
+    this.events.emit("update-mode", modes);
   }
 
   /**
@@ -427,7 +435,9 @@ export class UI {
    */
   pop(mode) {
     this.input.pop(mode);
-    this.events.emit("set-group");
+
+    let modes = Array.from(this.input.getActiveModes());
+    this.events.emit("update-mode", modes);
   }
 
   /**

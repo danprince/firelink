@@ -1,30 +1,109 @@
-// @ts-nocheck
-
-// Can't enable sane typechecking here because of the untyped Preact
-// import.
-
-import { h, Component, render } from "https://cdn.pika.dev/preact/v8";
+// @ts-ignore (typescript can't find external modules)
+import * as Preact from "https://unpkg.com/@danprince/preact-app@latest";
+import * as Utils from "./utils.js";
 import { Font, CanvasRenderer } from "./ui.js";
-import { Utils } from "./rogue.js";
 import settings from "./settings.js";
 import data from "./data.js";
 
+let {
+  html,
+  useState,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+} = Preact;
+
+let Context = Preact.createContext(null);
+
+/**
+ * @param {string[]} classNames
+ */
 let classes = (...classNames) => classNames.filter(x => x).join(" ");
 
-let color = (index) => settings["renderer.colors"][index];
+/**
+ * @param {number} index
+ */
+let color = index => settings["renderer.colors"][index];
 
-let scaleX = (x) => x *
-  settings["renderer.font.glyphWidth"] *
-  settings["renderer.scale"];
+/**
+ * @param {number} x
+ */
+let scaleX = x => {
+  return x * settings["renderer.font.glyphWidth"] * settings["renderer.scale"];
+};
 
-let scaleY = (y) => y *
-  settings["renderer.font.glyphHeight"] *
-  settings["renderer.scale"];
+/**
+ * @param {number} y
+ */
+let scaleY = y => {
+  return y * settings["renderer.font.glyphHeight"] * settings["renderer.scale"];
+};
 
-class Glyph extends Component {
-  static cache = {};
+/**
+ * Returns a function which can be used to trigger the current
+ * component to re-render.
+ */
+let useRefresh = () => {
+  let [state, setState] = useState(false);
+  return () => setState(!state);
+};
 
-  static renderer = new CanvasRenderer({
+/**
+ * Manages an event emitter subscription.
+ *
+ * @param {Utils.Emitter} emitter
+ * @param {string} name
+ * @param {(data?: any) => void} callback
+ */
+let useGenericEventListener = (emitter, name, callback) => {
+  useEffect(() => {
+    emitter.on(name, callback);
+    return () => emitter.off(name, callback);
+  }, [name, callback]);
+};
+
+/**
+ * Manages an event listener on the `ui.events` emitter.
+ *
+ * @param {string} name
+ * @param {(data?: any) => void} callback
+ */
+let useWorldEventListener = (name, callback) => {
+  let { ui } = useContext(Context);
+  useGenericEventListener(ui.world.events, name, callback);
+};
+
+/**
+ * Manages an event listener on the `ui.renderer.events` emitter.
+ *
+ * @param {string} name
+ * @param {(data?: any) => void} callback
+ */
+let useRendererEventListener = (name, callback) => {
+  let { ui } = useContext(Context);
+  useGenericEventListener(ui.renderer.events, name, callback);
+};
+
+/**
+ * Manages an event listener on the `ui.events` emitter.
+ *
+ * @param {string} name
+ * @param {(data?: any) => void} callback
+ */
+let useEventListener = (name, callback) => {
+  let { ui } = useContext(Context);
+  useGenericEventListener(ui.events, name, callback);
+};
+
+/**
+ * Utilities for rendering glyphs to base64 so that they can be used
+ * within the UI.
+ */
+let Glyphs = {
+  cache: {},
+
+  renderer: new CanvasRenderer({
     width: 1,
     height: 1,
     scale: 1,
@@ -34,102 +113,61 @@ class Glyph extends Component {
       glyphWidth: settings["renderer.font.glyphWidth"],
       glyphHeight: settings["renderer.font.glyphHeight"],
     }),
-  });
+  }),
 
-  static toBase64(glyph, color, scale) {
-    this.renderer.scale = scale;
-    this.renderer.init();
-    this.renderer.console.put(glyph, color, 0, 0, 0);
-    this.renderer.draw();
-    return this.renderer.canvas.toDataURL();
-  }
+  /**
+   * @param {number} glyph
+   * @param {number} color
+   * @param {number} scale
+   */
+  toBase64(glyph, color, scale) {
+    let key = `${glyph}-${color}-${scale}`;
 
-  componentDidMount() {
-    // If a glyph tries to render before the font has loaded,
-    // then force a re-render once it has loaded.
-    if (Glyph.renderer.ready === false) {
-      Glyph.renderer.events.on("ready", () => this.forceUpdate());
-    }
-  }
-
-  render() {
-    if (!Glyph.renderer.ready) {
-      return null;
+    if (this.cache[key] == null) {
+      this.renderer.scale = scale;
+      this.renderer.init();
+      this.renderer.console.put(glyph, color, 0, 0, 0);
+      this.renderer.draw();
+      this.cache[key] = this.renderer.canvas.toDataURL();
     }
 
-    let { id, color, scale=settings["renderer.scale"] } = this.props;
-    let key = `${id}-${color}-${scale}`;
-
-    if (Glyph.cache[key] == null) {
-      Glyph.cache[key] = Glyph.toBase64(id, color, scale);
-    }
-
-    let style = {
-      width: Glyph.renderer.font.glyphWidth * scale,
-      height: Glyph.renderer.font.glyphHeight * scale,
-    };
-
-    let src = Glyph.cache[key];
-
-    return h("img", { src, style });
-  }
+    return this.cache[key];
+  },
 }
 
-function parse(string) {
-  let color = 1;
-  let parts = [];
+let Glyph = ({ id, color, scale=settings["renderer.scale"] }) => {
+  let src = Glyphs.toBase64(id, color, scale);
 
-  while (string.length) {
-    let colorMatch = string.match(/^\[(\d+?)\]/);
-    let glyphMatch = string.match(/^\((\d+?)\)/);
-    let textMatch = string.match(/^[^\(\[]+/);
+  let style = {
+    width:  Glyphs.renderer.font.glyphWidth * scale,
+    height: Glyphs.renderer.font.glyphHeight * scale,
+  };
 
-    if (colorMatch) {
-      string = string.slice(colorMatch[0].length);
-      color = Number(colorMatch[1]);
-      continue;
-    }
-
-    else if (glyphMatch) {
-      string = string.slice(glyphMatch[0].length);
-      let glyph = Number(glyphMatch[1]);
-      parts.push({ glyph, color });
-      continue;
-    }
-
-    else if (textMatch) {
-      string = string.slice(textMatch[0].length);
-      let text = textMatch[0];
-      parts.push({ text, color });
-      continue;
-    }
-
-    else {
-      break;
-    }
-  }
-
-  return parts;
-}
+  return html`<img src=${src} style=${style} />`;
+};
 
 let Text = ({ children }) => {
-  let parts = parse(children[0]);
+  let parts = Utils.parseFormattedText(children);
 
-  return h("span", { class: "text" }, parts.map(part => {
-    if (part.glyph) {
-      return h(Glyph, { id: part.glyph, color: part.color });
-    }
+  return html`
+    <span class="text">
+      ${parts.map(part => {
+        if (part.glyph) {
+          return html`<${Glyph} id=${part.glyph} color=${part.color} />`;
+        }
 
-    if (part.text) {
-      let style = {
-        lineHeight: `${4 + scaleY(1)}px`,
-        height: scaleY(1),
-        color: color(part.color),
-      };
+        if (part.text) {
+          let style = {
+            lineHeight: `${4 + scaleY(1)}px`,
+            height: scaleY(1),
+            color: color(part.color),
+          };
 
-      return h("span", { style }, part.text);
-    }
-  }));
+          return html`<span style=${style}>${part.text}</span>`;
+        }
+      })}
+    </span>
+  `;
 };
 
 let Box = ({
@@ -139,6 +177,7 @@ let Box = ({
   direction,
   justify,
   align,
+  wrap,
   ...rest
 }) => {
   let style = { ...rest.style };
@@ -153,454 +192,200 @@ let Box = ({
   if (align) style.alignItems = align;
   if (justify) style.justifyContent = justify;
   if (direction) style.flexDirection = direction;
+  if (wrap) style.flexWrap = wrap;
 
   let className = classes(`box`, rest.class);
 
-  return h(as, { ...rest, class: className, style });
+  return html`<${as} ...${rest} class=${className} style=${style} />`;
 };
 
-class AnimatedNumber extends Component {
-  state = { value: this.props.value }
+let Console = () => {
+  let { dispatch } = useContext(Context);
+  let input = useRef();
+  let [value, setValue] = useState("");
+  let [message, setMessage] = useState("");
 
-  componentDidUpdate(prevProps) {
-    if (this.props.value !== prevProps.value) {
-      this.adjust();
-    }
-  }
+  useEventListener("focus-console", () => setTimeout(() => {
+    input.current.focus();
+    setValue("");
+  }));
 
-  adjust = () => {
-    if (this.props.value === this.state.value) return;
+  useEventListener("console-message", message => {
+    setMessage(message);
+    setTimeout(() => setMessage(null), 2000);
+  });
 
-    this.setState(state => {
-      let delta = this.props.value - state.value;
-      let step = Math.abs(delta) / 2;
-      let change = Math.ceil(step) * Math.sign(delta);
-      return { value: state.value + change };
-    });
-
-    requestAnimationFrame(this.adjust);
-  }
-
-  render() {
-    return String(this.state.value);
-  }
-}
-
-class Console extends Component {
-  input = null;
-
-  componentWillMount() {
-    let { ui } = this.props;
-    ui.events.on("focus-console", this.focus);
-    ui.events.on("console-message", this.flashMessage);
-  }
-
-  componentWillUnmount() {
-    let { ui } = this.props;
-    ui.events.off("focus-console", this.focus);
-    ui.events.off("console-message", this.flashMessage);
-  }
-
-  execute() {
-    let value = this.input.value.trim();
-
-    this.input.value = "";
-    this.input.blur();
+  let execute = () => {
+    setValue("");
+    input.current.blur();
 
     if (value) {
       let [name, ...args] = value.split(" ");
-      this.props.dispatch(name, ...args);
+      dispatch(name, ...args);
     }
-  }
+  };
 
-  autocomplete() {
-    let request = {
-      value: this.input.value,
-      completion: null,
-    };
+  let autocomplete = () => {
+    let request = { value, completion: null };
 
-    this.props.dispatch("console-get-completions", request);
+    dispatch("console-get-completions", request);
 
     if (request.completion) {
-      this.input.value = request.completion;
+      setValue(request.completion);
     }
-  }
+  };
 
-  flashMessage = (message) => {
-    let currentValue = this.input.value;
-
-    this.input.value = message;
-    this.input.setAttribute("disabled", "");
-
-    setTimeout(() => {
-      this.input.removeAttribute("disabled");
-      this.input.value = currentValue;
-    }, 2000);
-  }
-
-  handleKeyDown = (event) => {
+  let handleKeyDown = (event) => {
     event.stopPropagation();
 
     switch (event.key) {
       case "Enter":
-        return this.execute();
+        return execute();
 
       case "Tab":
         event.preventDefault();
-        return this.autocomplete();
+        return autocomplete();
     }
-  }
+  };
 
-  focus = () => {
-    // Prevent the console from capturing keys from the command
-    // that focused it.
-    setTimeout(() => {
-      this.input.focus();
-      this.input.value = "";
-    });
-  }
-
-  render() {
-    return (
-      h(Box, { class: "console", height: 1 },
-        h("input", {
-          type: "text",
-          onKeyDown: this.handleKeyDown,
-          ref: el => this.input = el
-        })
-      )
-    );
-  }
+  return html`
+    <${Box} class="console" height=${1}>
+      <input
+        ref=${input}
+        type="text"
+        disabled=${message}
+        value=${message || value}
+        onKeyDown=${handleKeyDown}
+        onInput=${event => setValue(event.target.value)}
+      />
+    </${Box}>
+  `;
 }
 
 let Palette = () => {
   let colors = settings["renderer.colors"];
 
-  return (
-    h(Box, { class: "palette", height: 1 },
-      Object.keys(colors).map(index => (
-        h(Box, {
-          class: "swatch",
-          justify: "center",
-          width: 1,
-          height: 1,
-          style: { background: colors[index] }
-        }, index)
-      ))
-    )
-  );
+  return html`
+    <${Box} class="palette" width=${8} wrap="wrap">
+      ${Object.keys(colors).map(index => html`
+        <${Box}
+          class="swatch"
+          justify="center"
+          width=${2}
+          height=${1}
+          style=${{ background: colors[index] }}
+          children=${index}
+        />
+      `)}
+    </${Box}>
+  `;
 }
 
-class Debug extends Component {
-  state = {
-    group: new Set(),
-    cursor: null,
-    entity: null,
-    rendererStats: null,
-    turns: 0,
-  }
+let Debug = () => {
+  let { ui } = useContext(Context);
+  let [modes, setModes] = useState([]);
+  let [cursor, setCursor] = useState(null);
+  let [entity, setEntity] = useState(null);
+  let [rendererStats, setRendererStats] = useState(null);
+  let [turns, setTurns] = useState(0);
 
-  componentDidMount() {
-    let { ui } = this.props;
-    ui.events.on("set-cursor", this.setCursor);
-    ui.events.on("set-group", this.setGroup);
-    ui.world.events.on("turn", this.refresh);
-    ui.renderer.events.on("stats", this.setRendererStats);
+  useEventListener("set-cursor", cursor => {
+    let entity = cursor && ui.world.getEntityAt(cursor.x, cursor.y);
+    setCursor(cursor);
+    setEntity(entity);
+  });
 
-    let group = ui.input.getCurrentGroup();
-    this.setState({ group });
-  }
+  useEventListener("update-mode", setModes);
+  useRendererEventListener("stats", setRendererStats);
+  useWorldEventListener("turn", setTurns);
 
-  componentWillUnmount() {
-    let { ui } = this.props;
-    ui.events.off("set-cursor", this.setCursor);
-    ui.events.off("set-group", this.setGroup);
-    ui.world.events.off("turn", this.refresh);
-    ui.renderer.events.off("stats", this.setRendererStats);
-  }
+  return html`
+    <${Box} class="debug" direction="column">
+      <div>mode=${modes.join(" | ")}</div>
+      <div>x=${cursor && cursor.x} y=${cursor && cursor.y}</div>
+      <div>entity=${entity && entity.id}</div>
+      <div>turns=${turns}</div>
+      <div>draws=${rendererStats && rendererStats.calls}</div>
+    </${Box}>
+  `;
+};
 
-  refresh = () => this.forceUpdate();
+let Popup = ({ x, y, width, height, children, onRequestClose }) => {
+  let { ui } = useContext(Context);
+  let translated = ui.worldToScreen(x, y);
 
-  setRendererStats = (stats) => {
-    this.setState({ rendererStats: stats });
-  }
+  let style = {
+    left: `${translated.x}px`,
+    top: `${translated.y}px`,
+  };
 
-  setCursor = cursor => {
-    let { ui } = this.props;
-    let entity = ui.world.getEntityAtCursor();
-    this.setState({ cursor, entity });
-  }
+  return html`
+    <${Box}
+      class="popup"
+      justify="center"
+      width=${width}
+      height=${height}
+      style=${style}
+      children=${children}
+    />
+  `;
+};
 
-  setGroup = () => {
-    let { ui } = this.props;
-    let group = ui.input.getCurrentGroup();
-    this.setState({ group });
-  }
+let PopupManager = () => {
+  let [popups, setPopups] = useState([]);
 
-  render() {
-    let { ui } = this.props;
-    let { cursor, group, entity, rendererStats } = this.state;
+  useEventListener("popup", popup => {
+    setPopups([...popups, popup]);
+  });
 
-    return (
-      h(Box, { class: "debug", direction: "column" },
-        h(Box, { justify: "space-between" },
-          h("div", {}, `X=${cursor && cursor.x} Y=${cursor && cursor.y}`),
-          entity && h("div", {}, `Entity=${entity.id}`),
-          h("div", {}, Array.from(group).join(" | ")),
-        ),
-        h(Box, { justify: "space-between" },
-          rendererStats && h("div", {}, `turns=${ui.world.turns} draws=${rendererStats.calls}`),
-        ),
-      )
-    )
-  }
-}
-
-export class Popup extends Component {
-  static defaultProps = {
-    duration: 2000
-  }
-
-  componentDidMount() {
-    this.timeout = setTimeout(this.close, this.props.duration);
-  }
-
-  componentWillUnmount() {
-    clearTimeout(this.timeout);
-  }
-
-  close = () => {
-    this.props.onRequestClose();
-  }
-
-  render() {
-    let { ui, x, y, width, height, children } = this.props;
-
-    let translate = ui.worldToScreen(x, y);
-
-    let style = {
-      left: `${translate.x}px`,
-      top: `${translate.y}px`,
-    };
-
-    return (
-      h(Box, {
-        class: "popup",
-        justify: "center",
-        width,
-        height,
-        style,
-        children,
-      })
+  let removePopup = (popup) => {
+    setPopups(
+      popups.filter(other => other !== popup)
     );
-  }
-}
+  };
 
-export class PopupManager extends Component {
-  state = { popups: [] }
+  return html`
+    <div class="popup-manager">
+      ${popups.map(popup => html`
+        <${Popup} ...${popup} onRequestClose=${() => removePopup(popup)}>
+          <${Text}>${popup.body}</${Text}>
+        </${Popup}>
+      `)}
+    </div>
+  `;
+};
 
-  componentDidMount() {
-    let { ui } = this.props;
-    ui.events.on("popup", this.addPopup)
-    ui.world.events.on("turn", this.refresh)
-  }
+let Editor = () => {
+  let [visible, setVisibility] = useState(false);
 
-  componentWillUnmount() {
-    let { ui } = this.props;
-    ui.events.off("popup", this.addPopup)
-    ui.world.events.off("turn", this.refresh)
-  }
+  useEventListener("editor-open", () => setVisibility(true));
+  useEventListener("editor-close", () => setVisibility(false));
 
-  refresh = () => this.forceUpdate();
+  return visible && html`
+    <${Box} class="editor" justify="space-between">
+      <${Palette} />
+    </${Box}>
+  `;
+};
 
-  addPopup = popup => {
-    this.setState(state => {
-      return { popups: [...state.popups, popup] };
-    });
-  }
+let LogPreview = () => {
+  let [message, setMessage] = useState("");
 
-  removePopup = popup => {
-    this.setState(state => {
-      let popups = state.popups.filter(other => other !== popup);
-      return { popups };
-    })
-  }
+  useEventListener("set-message", setMessage);
 
-  render() {
-    let { ui } = this.props;
+  return html`
+    <${Box} class="log-preview" height=${1}>
+      ${message}
+    </${Box}>
+  `;
+};
 
-    return (
-      h("div", { class: "popup-manager" },
-        this.state.popups.map(popup => (
-          h(Popup, {
-            ui,
-            x: popup.x,
-            y: popup.y,
-            width: popup.width,
-            height: popup.height,
-            children: h(Text, {}, popup.body),
-            onRequestClose: () => this.removePopup(popup),
-          })
-        ))
-      )
-    );
-  }
-}
+let Viewport = ({ children }) => {
+  let container = useRef();
+  let animationFrame = useRef();
+  let { ui } = useContext(Context);
 
-class Editor extends Component {
-  state = { open: false };
-
-  componentDidMount() {
-    let { ui } = this.props;
-    ui.events.on("editor-open", this.openEditor);
-    ui.events.on("editor-close", this.closeEditor);
-  }
-
-  componentWillUnmount() {
-    let { ui } = this.props;
-    ui.events.off("editor-open", this.openEditor);
-    ui.events.off("editor-close", this.closeEditor);
-  }
-
-  openEditor = () => this.setState({ open: true });
-  closeEditor = () => this.setState({ open: false });
-
-  render() {
-    if (this.state.open === false) {
-      return null;
-    }
-
-    return (
-      h(Box, { class: "editor" },
-        h(Palette),
-      )
-    );
-  }
-}
-
-class Log extends Component {
-  state = { history: [] }
-
-  componentWillMount() {
-    let { ui } = this.props;
-    ui.events.on("set-message", this.setMessage);
-  }
-
-  componentWillUnmount() {
-    let { ui } = this.props;
-    ui.events.off("set-message", this.setMessage);
-  }
-
-  setMessage = (message) => {
-    let history = [...this.state.history, message];
-    this.setState({ history });
-  }
-
-  render() {
-    return (
-      h(Box, { class: "log", height: 3 },
-        this.state.history.map(message => (
-          h(Box, { height: 1, class: "message" }, message)
-        ))
-       )
-    );
-  }
-}
-
-class LogPreview extends Component {
-  state = { message: "" }
-
-  componentWillMount() {
-    let { ui } = this.props;
-    ui.events.on("set-message", this.setMessage);
-  }
-
-  componentWillUnmount() {
-    let { ui } = this.props;
-    ui.events.off("set-message", this.setMessage);
-  }
-
-  setMessage = (message) => {
-    this.setState({ message });
-  }
-
-  render() {
-    return (
-      h(Box, { height: 1, class: "log-preview" }, this.state.message)
-    );
-  }
-}
-
-class Modal extends Component {
-  render() {
-    let style = {
-      borderColor: color(4)
-    };
-
-    return (
-      h("div", { class: "modal", style },
-        this.props.children,
-      )
-    );
-  }
-}
-
-class Viewport extends Component {
-  container = null;
-  frame = null
-
-  componentDidMount() {
-    let { ui } = this.props;
-    this.container.appendChild(ui.renderer.canvas);
-
-    if (ui.ready) {
-      this.start();
-    } else {
-      ui.events.on("ready", this.start);
-    }
-  }
-
-  componentWillUnmount() {
-    let { ui } = this.props;
-    this.container.removeChild(ui.renderer.canvas);
-  }
-
-  start = () => {
-    let { ui } = this.props;
-    ui.events.off("ready", this.start);
-    this.loop();
-  }
-
-  stop = () => {
-    cancelAnimationFrame(this.frame);
-  }
-
-  handleCursorMove = event => {
-    let { ui } = this.props;
-    let { top, left } = this.container.getBoundingClientRect();
-
-    let screenX = event.clientX - left;
-    let screenY = event.clientY - top;
-
-    let { x, y } = ui.screenToWorld(screenX, screenY);
-
-    ui.events.emit("set-cursor", { x, y });
-    ui.world.cursor = { x, y };
-  }
-
-  handleCursorLeave = event => {
-    let { ui } = this.props;
-    ui.events.emit("set-cursor", null);
-    ui.world.cursor = null;
-  }
-
-  loop = () => {
-    this.frame = requestAnimationFrame(this.loop);
-    this.draw();
-  }
-
-  draw() {
-    let { ui } = this.props;
+  let draw = () => {
     let { renderer, world } = ui;
     let { camera } = world;
     let { console } = renderer;
@@ -652,76 +437,100 @@ class Viewport extends Component {
     }
 
     renderer.draw();
-  }
+  };
 
-  render() {
-    return (
-      h("div", {
-        class: "viewport",
-        ref: el => this.container = el,
-        onMouseMove: this.handleCursorMove,
-        onMouseLeave: this.handleCursorLeave,
-        children: this.props.children,
-      })
-    )
-  }
-}
+  let start = () => {
+    container.current.appendChild(ui.renderer.canvas);
+    loop();
+  };
 
-export let Button = (props) => (
-  h("button", {
-    ...props,
-    class: classes("button", props.class),
-  })
-);
+  let stop = () => {
+    container.current.removeChild(ui.renderer.canvas);
+    cancelAnimationFrame(animationFrame.current);
+  };
 
-export let Bar = ({ length, value, color }) => (
-  h(Box, { class: "bar", height: 1, width: length },
-    ...Utils.range(length).map(i => {
+  let loop = () => {
+    animationFrame.current = requestAnimationFrame(loop);
+    draw();
+  };
+
+  let handleCursorMove = useCallback(event => {
+    let { top, left } = container.current.getBoundingClientRect();
+
+    let screenX = event.clientX - left;
+    let screenY = event.clientY - top;
+
+    let { x, y } = ui.screenToWorld(screenX, screenY);
+
+    ui.events.emit("set-cursor", { x, y });
+    ui.world.cursor = { x, y };
+  });
+
+  let handleCursorLeave = useCallback(() => {
+    ui.events.emit("set-cursor", null);
+    ui.world.cursor = null;
+  });
+
+  useEffect(() => {
+    if (ui.ready) {
+      start();
+    } else {
+      ui.events.on("ready", start);
+    }
+
+    return () => {
+      stop();
+      ui.events.off("ready", start);
+    };
+  }, []);
+
+  return html`
+    <div
+      class="viewport"
+      ref=${container}
+      onMouseMove=${handleCursorMove}
+      onMouseLeave=${handleCursorLeave}
+      children=${children}
+    />
+  `;
+};
+
+let Bar = ({ length, value, color }) => html`
+  <${Box} class=bar height=${1} width=${length}>
+    ${Utils.range(length).map(i => {
       let filled = i < value;
       let glyph;
 
-      if (i === 0) glyph = 48;
-      else if (i === length - 1) glyph = 50;
-      else glyph = 49;
+      if (i === 0) glyph = 64;
+      else if (i === length - 1) glyph = 66;
+      else glyph = 65;
 
-      return h(Glyph, { id: glyph, color: filled ? color : 2 });
-    }),
-  )
-);
+      return html`<${Glyph} id=${glyph} color=${filled ? color : 9} />`;
+    })}
+  </${Box}>
+`;
 
-class Status extends Component {
-  componentDidMount() {
-    let { ui } = this.props;
-    ui.world.events.on("turn", this.refresh);
-    ui.events.on("refresh", this.refresh);
-  }
+let Status = () => {
+  let refresh = useRefresh();
 
-  componentWillUnmount() {
-    let { ui } = this.props;
-    ui.world.events.off("turn", this.refresh);
-    ui.events.off("refresh", this.refresh);
-  }
+  useWorldEventListener("turn", refresh);
+  useEventListener("refresh", refresh);
 
-  refresh = () => this.forceUpdate();
+  let { ui } = useContext(Context);
+  let { player } = ui.world;
 
-  render() {
-    let { ui } = this.props;
-    let { player } = ui.world;
+  return html`
+    <${Box} class=status justify=space-between>
+      <${Bar} length=${player.maxHp} value=${player.hp} color=${2} />
+      <${Box} height={1}>${player.souls}</${Box}>
+      <${Bar} length=${player.maxStamina} value=${player.stamina} color=${3} />
+    </${Box}>
+  `;
+};
 
-    return (
-      h(Box, { class: "status", justify: "space-between" },
-        h(Bar, { length: player.maxHp, value: player.hp, color: 5 }),
-        h(Box, { height: 1 },
-          h(AnimatedNumber, { value: player.souls }),
-        ),
-        h(Bar, { length: player.maxStamina, value: player.stamina, color: 6 }),
-      )
-    );
-  }
-}
+let App = ({ ui }) => {
+  const DEBUG = settings["debug"];
 
-export function mount(selector, ui) {
-  // todo: make this available via context
   let app = {
     ui: ui,
     dispatch(name, ...args) {
@@ -729,32 +538,31 @@ export function mount(selector, ui) {
     }
   };
 
-  let root = (
-    h("div", { class: "ui" },
-      settings["debug"]
-        ? h(Debug, { ...app })
-        : null,
+  return html`
+    <${Context.Provider} value=${app}>
+      <div class="ui">
+        ${DEBUG && html`<${Debug} />`}
+        <${Status} />
+        <${Viewport} ...${app}>
+          <${PopupManager} />
+        <//>
+        <${LogPreview} />
+        <${Console} />
+        <${Editor} />
+      </div>
+    </${Context.Provider}>
+  `;
+};
 
-      h(Status, { ...app }),
+export async function mount(selector, ui) {
+  if (Glyphs.renderer.ready == false) {
+    await new Promise(resolve => {
+      Glyphs.renderer.events.on("ready", resolve);
+    });
+  }
 
-      h(Viewport, { ...app },
-        h(PopupManager, { ...app })
-      ),
-
-      h(LogPreview, { ...app }),
-      h(Console, { ...app }),
-      h(Editor, { ...app }),
-      h(Text, {}, "[6](64)[1] Hello"),
-      //h(Modal, {},
-      //  h("div", null, `Hello world, welcome to my great modal.`),
-      //  h(Button, null, "Ok"),
-      //  h(Button, null, "Cancel"),
-      //),
-    )
-  );
-
-  render(
-    root,
+  Preact.render(
+    html`<${App} ui=${ui} />`,
     document.querySelector(selector),
   );
 }

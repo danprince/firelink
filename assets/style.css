@@ -11,6 +11,9 @@ body {
   justify-content: center;
   height: 100vh;
   user-select: none;
+
+  /* Remember to change this with the palette */
+  background: #222321;
 }
 
 * {
@@ -40,6 +43,7 @@ canvas {
   left: 0;
   right: 0;
   padding: 8px;
+  pointer-events: none;
 }
 
 .console input {
