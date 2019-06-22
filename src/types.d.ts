@@ -43,10 +43,13 @@ declare namespace Defs {
   }
 
   export type Tile = {
+    id: number,
+    name: string,
     glyph: number,
     color: number,
     walkable?: boolean,
     autotile?: boolean,
+    variants?: number,
   }
 
   export type Dict<T> = {

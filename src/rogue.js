@@ -474,8 +474,18 @@ export class TileMap {
       for (let y= y0; y <= y1; y++) {
         let tile = this.get(x, y);
         if (tile == null) continue;
+
         let def = data.tiles[tile.type];
-        if (def == null || !def.autotile) continue;
+        if (def == null) continue;
+
+        // If this tile has variants and hasn't already been assigned
+        // a glyph, pick one of the variant glyphs at random.
+        if (def.variants && tile.glyph == null) {
+          tile.glyph = def.glyph + Random.int(def.variants);
+          continue;
+        }
+
+        if (!def.autotile) continue;
 
         let n = this.get(x, y - 1);
         let s = this.get(x, y + 1);
