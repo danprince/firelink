@@ -240,8 +240,26 @@ export class Input {
   /** @type {((action: string) => void)[]} */
   listeners = [];
 
+  /** @type {Set<string>} */
+  pressed = new Set();
+
   getActiveModes() {
     return this.stack[this.stack.length - 1];
+  }
+
+  /**
+   * @param {string} key
+   */
+  mapKeyToButton(key) {
+    let controls = settings["controls"];
+
+    for (let button in controls) {
+      for (let k of controls[button]) {
+        if (key === k) {
+          return button;
+        }
+      }
+    }
   }
 
   /**
@@ -286,30 +304,11 @@ export class Input {
 
   /**
    * @param {string} mode
-   * @param {string} name
+   * @param {string[]} buttons
    * @param {string} action
    */
-  bind(mode, name, action) {
-    for (let button of settings["controls"][name]) {
-      this.bindings.push({ mode, button, action });
-    }
-  }
-
-  /**
-   * @param {string} button
-   */
-  fire(button) {
-    let modes = this.getActiveModes();
-
-    // Take a copy of this group, so that it can't change whilst we
-    // are processing this input event.
-    modes = new Set(modes);
-
-    for (let command of this.bindings) {
-      if (command.button === button && modes.has(command.mode)) {
-        this.trigger(command.action);
-      }
-    }
+  bind(mode, buttons, action) {
+    this.bindings.push({ mode, buttons, action });
   }
 
   /**
@@ -322,30 +321,106 @@ export class Input {
   }
 
   /**
-   * @param {KeyboardEvent | MouseEvent} event
+   * @param {string} key
    */
-  handleEvent = (event) => {
-    if (event instanceof KeyboardEvent) {
-      this.fire(event.key);
-    } else if (event instanceof MouseEvent) {
-      this.fire(`mouse-${event.button}`);
+  press(key) {
+    let button = this.mapKeyToButton(key);
+    if (button == null) return;
 
-      switch (event.button) {
-        case 0: return this.fire("left-click");
-        case 1: return this.fire("middle-click");
-        case 2: return this.fire("right-click");
+    this.pressed.add(button);
+
+    // Take a copy of the modes, so that they can't change whilst we
+    // are triggering commands from this input event.
+    let modes = new Set(this.getActiveModes());
+
+    for (let command of this.bindings) {
+      // Check that we're in the correct mode
+      if (modes.has(command.mode) === false) {
+        continue;
+      }
+
+      // Check that the right number of buttons are pressed
+      if (command.buttons.length !== this.pressed.size) {
+        continue;
+      }
+
+      // Check that each of the buttons for this command is down
+      let pressed = command.buttons.every(button => {
+        return this.pressed.has(button);
+      });
+
+      // Trigger the action for this command
+      if (pressed) {
+        this.trigger(command.action);
       }
     }
   }
 
+  /**
+   * @param {string} key
+   */
+  release(key) {
+    let button = this.mapKeyToButton(key);
+
+    if (button) {
+      this.pressed.delete(button);
+    }
+  }
+
+  /**
+   * @param {KeyboardEvent} event
+   */
+  handleKeyDown = event => {
+    let key = event.key.toLowerCase();
+    this.press(key);
+  }
+
+  /**
+   * @param {KeyboardEvent} event
+   */
+  handleKeyUp = event => {
+    let key = event.key.toLowerCase();
+    this.release(key);
+  }
+
+  /**
+   * @param {MouseEvent} event
+   */
+  handleMouseDown = event => {
+    this.press(`mouse-${event.button}`);
+
+    switch (event.button) {
+      case 0: return this.press("left-click");
+      case 1: return this.press("middle-click");
+      case 2: return this.press("right-click");
+    }
+  }
+
+  /**
+   * @param {MouseEvent} event
+   */
+  handleMouseUp = event => {
+    this.release(`mouse-${event.button}`);
+
+    switch (event.button) {
+      case 0: return this.release("left-click");
+      case 1: return this.release("middle-click");
+      case 2: return this.release("right-click");
+    }
+  }
+
   addEventListeners() {
-    window.addEventListener("keydown", this.handleEvent);
-    window.addEventListener("mousedown", this.handleEvent);
+    window.addEventListener("keydown", this.handleKeyDown);
+    window.addEventListener("keyup", this.handleKeyUp);
+    window.addEventListener("mousedown", this.handleMouseDown);
+    window.addEventListener("mouseup", this.handleMouseUp);
   }
 
   removeEventListeners() {
-    window.removeEventListener("keydown", this.handleEvent);
-    window.removeEventListener("mousedown", this.handleEvent);
+    window.removeEventListener("keydown", this.handleKeyDown);
+    window.removeEventListener("keyup", this.handleKeyUp);
+    window.removeEventListener("mousedown", this.handleMouseDown);
+    window.removeEventListener("mouseup", this.handleMouseUp);
   }
 }
 

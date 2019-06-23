@@ -39,7 +39,7 @@ export default {
     "#ffc14a",
   ],
   "controls": {
-    "exit": ["Escape"],
+    "exit": ["escape"],
     "toggle-editor": ["e"],
     "editor-cycle": ["left-click"],
     "focus-console": ["/"],
@@ -47,6 +47,7 @@ export default {
     "east": ["l"],
     "south": ["j"],
     "west": ["h"],
+    "dodge": ["shift"],
     "restart": ["r"],
   },
   "rules.maxActionTries": 10,
