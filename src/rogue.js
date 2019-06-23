@@ -142,7 +142,7 @@ export class Component {
   /**
    * @param {Rogue.Event} [event]
    */
-  onEvent(event) {}
+  onEvent() {}
 }
 
 export class Entity {
@@ -164,21 +164,17 @@ export class Entity {
    * @param {string} type
    */
   constructor(type) {
-    let {
-      types,
-      components,
-      attributes,
-    } = Inheritance.getInheritedProps(type);
+    let inherited = Inheritance.getInheritedProps(type);
 
     this.id = Utils.uid();
     this.type = Entity.registry[type];
-    this.types = new Set(types);
+    this.types = new Set(inherited.types);
     this.active = false;
     this.x = 0;
     this.y = 0;
     this.z = 0;
-    this.glyph = attributes.glyph;
-    this.color = attributes.color;
+    this.glyph = inherited.attributes.glyph;
+    this.color = inherited.attributes.color;
 
     /** @type {World} */
     this.world = null;
@@ -186,7 +182,7 @@ export class Entity {
     /** @type {Component[]} */
     this.components = [];
 
-    for (let component of components) {
+    for (let component of inherited.components) {
       this.add(component);
     }
   }
@@ -372,6 +368,8 @@ class Player extends Actor {
    * The player takes turns in a different way to most actors. After
    * a turn is requested, we block whilst we wait for an input. The
    * UI is responsible for passing an input to us asynchronously.
+   *
+   * @return {Promise<Action>}
    */
   async takeTurn() {
     return new Promise(resolve => {
@@ -568,44 +566,42 @@ export class World {
         entity.onBeforeTurn();
 
         if (entity instanceof Actor) {
-          // Try actions until one succeeds
           while (true) {
             let actor = entity;
             let action = await actor.takeTurn();
-            let result = null;
             let tries = 0;
 
-            while (tries < MAX_ACTION_TRIES) {
+            /** @type {Rogue.ActionResult} */
+            let result = null;
+
+            while (tries++ < MAX_ACTION_TRIES) {
               actor.onBeforeAction(action);
-              result = action.perform(actor, this);
+              result = action.perform(actor);
               actor.onAfterAction(action, result);
 
               if (DEBUG) {
                 stats.actions += 1;
               }
 
-              if (result.ok) {
+              if (result.ok || result.alt == null) {
                 break;
               }
 
-              if (result.alt) {
-                action = result.alt;
-              }
-
-              tries++;
+              action = result.alt;
             }
 
             if (tries >= MAX_ACTION_TRIES) {
-              break;
+              console.warn("entity took too many tries", entity);
             }
 
-            if (entity instanceof Player) {
-              if (result.ok) break;
-            } else {
-              // Prevent non-player characters getting stuck if they
-              // are unable to produce an action
-              break;
+            // Allow the player to try a retry if their action failed
+            if (!result.ok && entity instanceof Player) {
+              continue;
             }
+
+            // Prevent non-player characters getting stuck if they
+            // are unable to produce an action
+            break;
           }
         }
 
