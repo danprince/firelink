@@ -37,8 +37,8 @@ let world = new World();
 
 let ui = new UI(world, renderer);
 
-for (let command of data.commands) {
-  ui.input.bind(command.mode, command.on, command.trigger);
+for (let binding of data.bindings) {
+  ui.input.bind(binding.mode, binding.on, binding.trigger);
 }
 
 ui.commands = {

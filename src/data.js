@@ -1,8 +1,8 @@
 export default {
   /**
-   * @type {Rogue.Binding[]}
+   * @type {Rogue.UI.Binding[]}
    */
-  commands: [
+  bindings: [
     // Default controls
     { mode: "default", "on": "restart", trigger: "restart" },
     { mode: "default", "on": "toggle-editor", trigger: "editor-open" },

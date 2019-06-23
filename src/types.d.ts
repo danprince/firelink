@@ -53,12 +53,6 @@ declare namespace Rogue {
     variants?: number,
   }
 
-  export type Binding = {
-    mode: string,
-    on: string,
-    trigger: string,
-  };
-
   export namespace UI {
     export type FontConfig = {
       url: string,
@@ -76,8 +70,8 @@ declare namespace Rogue {
 
     export type Binding = {
       mode: string,
-      name: string,
-      action: string,
-    }
+      on: string,
+      trigger: string,
+    };
   }
 }

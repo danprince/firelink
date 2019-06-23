@@ -289,11 +289,11 @@ export class Input {
 
   /**
    * @param {string} mode
-   * @param {string} name
-   * @param {string} action
+   * @param {string} on
+   * @param {string} trigger
    */
-  bind(mode, name, action) {
-    this.bindings.push({ mode, name, action });
+  bind(mode, on, trigger) {
+    this.bindings.push({ mode, on, trigger });
   }
 
   /**
@@ -321,28 +321,21 @@ export class Input {
         continue;
       }
 
-      let groups = settings["controls"][command.name];
+      /** @type {(string | string[])[]} */
+      let groups = settings["controls"][command.on];
 
       let pressed = groups.some(group => {
-        // Allow shorthand format for bindings
-        if (typeof group === "string") {
-          group = [group];
-        }
+        let keys = typeof group === "string" ? [group] : group;
 
-        // Check that the correct number of buttons are pressed
-        if (group.length !== this.pressed.size) {
-          return false;
-        }
-
-        // Check that each of the buttons for this command is down
-        return group.every(button => {
-          return this.pressed.has(button);
-        });
+        return (
+          keys.length === this.pressed.size &&
+          keys.every(key => this.pressed.has(key))
+        );
       });
 
       // Trigger the action for this command
       if (pressed) {
-        this.trigger(command.action);
+        this.trigger(command.trigger);
       }
     }
   }
