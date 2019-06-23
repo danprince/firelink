@@ -5,6 +5,7 @@ import {
   Component,
   Entity,
   TileMap,
+  Directions,
 } from "./rogue.js";
 
 import { UI, Font, CanvasRenderer } from "./ui.js";
@@ -82,42 +83,42 @@ ui.commands = {
   },
   "walk-north": () => {
     world.player.setNextAction(
-      new Actions.Walk(0, -1)
+      new Actions.Walk(Directions.North)
     );
   },
   "walk-south": () => {
     world.player.setNextAction(
-      new Actions.Walk(0, 1)
+      new Actions.Walk(Directions.South)
     );
   },
   "walk-east": () => {
     world.player.setNextAction(
-      new Actions.Walk(1, 0)
+      new Actions.Walk(Directions.East)
     );
   },
   "walk-west": () => {
     world.player.setNextAction(
-      new Actions.Walk(-1, 0)
+      new Actions.Walk(Directions.West)
     );
   },
   "dodge-north": () => {
     world.player.setNextAction(
-      new Actions.Dodge(0, -2)
+      new Actions.Dodge(Directions.North)
     );
   },
   "dodge-south": () => {
     world.player.setNextAction(
-      new Actions.Dodge(0, 2)
+      new Actions.Dodge(Directions.South)
     );
   },
   "dodge-east": () => {
     world.player.setNextAction(
-      new Actions.Dodge(2, 0)
+      new Actions.Dodge(Directions.East)
     );
   },
   "dodge-west": () => {
     world.player.setNextAction(
-      new Actions.Dodge(-2, 0)
+      new Actions.Dodge(Directions.West)
     );
   },
   "teleport": (x, y) => {

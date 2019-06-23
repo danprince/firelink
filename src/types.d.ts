@@ -16,6 +16,8 @@ declare namespace Rogue {
     new(...args: any[]): T
   }
 
+  export type Direction = "north" | "east" | "south" | "west";
+
   export type Tile = {
     type: number,
     glyph?: number,

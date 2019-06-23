@@ -1,4 +1,4 @@
-import { TileMap, Entity, Action } from "./rogue.js";
+import { TileMap, Entity, Action, Directions } from "./rogue.js";
 import { Stamina } from "./components.js";
 
 let { succeed, fail, alternate } = Action;
@@ -74,22 +74,20 @@ export class MoveBy extends Action {
 
 export class Walk extends Action {
   /**
-   * @param {number} x
-   * @param {number} y
+   * @param {Rogue.Direction} dir
    */
-  constructor(x, y) {
+  constructor(dir) {
     super();
-    this.x = x;
-    this.y = y;
+    this.dir = dir;
   }
 
   /**
    * @param {Entity} entity
    */
   perform(entity) {
-    let x = this.x + entity.x;
-    let y = this.y + entity.y;
-
+    let steps = Directions.steps(this.dir, 1);
+    let x = entity.x + steps.x;
+    let y = entity.y + steps.y;
     let stamina = entity.get(Stamina);
 
     if (stamina.value < stamina.max) {
@@ -104,25 +102,26 @@ export class Walk extends Action {
 
 export class Dodge extends Action {
   /**
-   * @param {number} x
-   * @param {number} y
+   * @param {Rogue.Direction} dir
    */
-  constructor(x, y) {
+  constructor(dir) {
     super();
-    this.x = x;
-    this.y = y;
+    this.dir = dir;
   }
 
   /**
    * @param {Entity} entity
    */
   perform(entity) {
-    let x = this.x + entity.x;
-    let y = this.y + entity.y;
+    let steps = Directions.steps(this.dir, 2);
+    let x = entity.x + steps.x;
+    let y = entity.y + steps.y;
     let stamina = entity.get(Stamina);
 
-    if (stamina.value === 0) {
-      return fail("You don't have enough stamina to do that");
+    if (stamina.value < 1) {
+      return alternate(
+        new Walk(this.dir)
+      );
     }
 
     stamina.value -= 1;

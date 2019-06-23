@@ -3,6 +3,24 @@ import * as Utils from "./utils.js";
 
 let { assert } = Utils;
 
+export let Directions = {
+  North: /** @type {Rogue.Direction} */ ("north"),
+  East: /** @type {Rogue.Direction} */ ("east"),
+  South: /** @type {Rogue.Direction} */ ("south"),
+  West: /** @type {Rogue.Direction} */ ("west"),
+
+  steps(direction, count=1) {
+    switch (direction) {
+      case "north": return { x: 0, y: -count };
+      case "south": return { x: 0, y: count };
+      case "west": return { x: -count, y: 0 };
+      case "east": return { x: count, y: 0 };
+      default:
+        return { x: 0, y: 0 };
+    }
+  }
+};
+
 export let Inheritance = {
   /**
    * @param {string} id

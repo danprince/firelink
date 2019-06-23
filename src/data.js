@@ -62,8 +62,8 @@ export default {
         color: 1,
       },
       components: {
-        Hitpoints: 3,
-        Stamina: 3,
+        Hitpoints: 6,
+        Stamina: 6,
       },
     },
   ],
