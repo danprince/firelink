@@ -13,10 +13,10 @@ export default {
     { mode: "default", "on": "east", trigger: "walk-east" },
     { mode: "default", "on": "south", trigger: "walk-south" },
     { mode: "default", "on": "west", trigger: "walk-west" },
-    { mode: "default", "on": ["dodge", "north"], trigger: "dodge-north" },
-    { mode: "default", "on": ["dodge", "east"], trigger: "dodge-east" },
-    { mode: "default", "on": ["dodge", "south"], trigger: "dodge-south" },
-    { mode: "default", "on": ["dodge", "west"], trigger: "dodge-west" },
+    { mode: "default", "on": "dodge-north", trigger: "dodge-north" },
+    { mode: "default", "on": "dodge-east", trigger: "dodge-east" },
+    { mode: "default", "on": "dodge-south", trigger: "dodge-south" },
+    { mode: "default", "on": "dodge-west", trigger: "dodge-west" },
 
     // Editor controls
     { mode: "editor", "on": "toggle-editor", trigger: "editor-close" },

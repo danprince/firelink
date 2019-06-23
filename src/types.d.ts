@@ -55,7 +55,7 @@ declare namespace Rogue {
 
   export type Binding = {
     mode: string,
-    on: string | string[],
+    on: string,
     trigger: string,
   };
 
@@ -76,7 +76,7 @@ declare namespace Rogue {
 
     export type Binding = {
       mode: string,
-      buttons: string[],
+      name: string,
       action: string,
     }
   }

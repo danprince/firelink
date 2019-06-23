@@ -38,8 +38,7 @@ let world = new World();
 let ui = new UI(world, renderer);
 
 for (let command of data.commands) {
-  let buttons = Array.isArray(command.on) ? command.on : [command.on];
-  ui.input.bind(command.mode, buttons, command.trigger);
+  ui.input.bind(command.mode, command.on, command.trigger);
 }
 
 ui.commands = {

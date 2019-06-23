@@ -248,21 +248,6 @@ export class Input {
   }
 
   /**
-   * @param {string} key
-   */
-  mapKeyToButton(key) {
-    let controls = settings["controls"];
-
-    for (let button in controls) {
-      for (let k of controls[button]) {
-        if (key === k) {
-          return button;
-        }
-      }
-    }
-  }
-
-  /**
    * @param {string} mode
    */
   push(mode, exclusive=false) {
@@ -304,11 +289,11 @@ export class Input {
 
   /**
    * @param {string} mode
-   * @param {string[]} buttons
+   * @param {string} name
    * @param {string} action
    */
-  bind(mode, buttons, action) {
-    this.bindings.push({ mode, buttons, action });
+  bind(mode, name, action) {
+    this.bindings.push({ mode, name, action });
   }
 
   /**
@@ -324,29 +309,35 @@ export class Input {
    * @param {string} key
    */
   press(key) {
-    let button = this.mapKeyToButton(key);
-    if (button == null) return;
-
-    this.pressed.add(button);
+    this.pressed.add(key);
 
     // Take a copy of the modes, so that they can't change whilst we
     // are triggering commands from this input event.
     let modes = new Set(this.getActiveModes());
 
     for (let command of this.bindings) {
-      // Check that we're in the correct mode
+      // Check that we're in the correct mode for this command
       if (modes.has(command.mode) === false) {
         continue;
       }
 
-      // Check that the right number of buttons are pressed
-      if (command.buttons.length !== this.pressed.size) {
-        continue;
-      }
+      let groups = settings["controls"][command.name];
 
-      // Check that each of the buttons for this command is down
-      let pressed = command.buttons.every(button => {
-        return this.pressed.has(button);
+      let pressed = groups.some(group => {
+        // Allow shorthand format for bindings
+        if (typeof group === "string") {
+          group = [group];
+        }
+
+        // Check that the correct number of buttons are pressed
+        if (group.length !== this.pressed.size) {
+          return false;
+        }
+
+        // Check that each of the buttons for this command is down
+        return group.every(button => {
+          return this.pressed.has(button);
+        });
       });
 
       // Trigger the action for this command
@@ -360,11 +351,7 @@ export class Input {
    * @param {string} key
    */
   release(key) {
-    let button = this.mapKeyToButton(key);
-
-    if (button) {
-      this.pressed.delete(button);
-    }
+    this.pressed.delete(key);
   }
 
   /**
