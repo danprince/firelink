@@ -142,7 +142,7 @@ export class Component {
   /**
    * @param {Rogue.Event} [event]
    */
-  onEvent() {}
+  onEvent(event) {}
 }
 
 export class Entity {
