@@ -354,6 +354,10 @@ export class Input {
     this.pressed.delete(key);
   }
 
+  handlePageBlur = () => {
+    this.pressed.clear();
+  }
+
   /**
    * @param {KeyboardEvent} event
    */
@@ -401,6 +405,7 @@ export class Input {
     window.addEventListener("keyup", this.handleKeyUp);
     window.addEventListener("mousedown", this.handleMouseDown);
     window.addEventListener("mouseup", this.handleMouseUp);
+    window.addEventListener("blur", this.handlePageBlur);
   }
 
   removeEventListeners() {
@@ -408,6 +413,7 @@ export class Input {
     window.removeEventListener("keyup", this.handleKeyUp);
     window.removeEventListener("mousedown", this.handleMouseDown);
     window.removeEventListener("mouseup", this.handleMouseUp);
+    window.removeEventListener("blur", this.handlePageBlur);
   }
 }
 
