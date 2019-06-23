@@ -1,39 +1,44 @@
-import { Actor, World, Random } from "./rogue.js";
-import { UI } from "./ui.js";
+import {
+  Actor,
+  World,
+  Random,
+  Component,
+  Entity,
+  TileMap,
+} from "./rogue.js";
+
+import { UI, Font, CanvasRenderer } from "./ui.js";
 import { mount } from "./widgets.js";
+import data from "./data.js";
+import settings from "./settings.js";
 import * as Actions from "./actions.js";
 import * as Components from "./components.js";
 
-export class Game {
-  world = new World();
-  ui = new UI(this.world);
+TileMap.register(data.tiles);
+Entity.register(data.entities);
+Component.register(Components);
 
-  constructor() {
-    this.ui.events.on("ready", this.start)
-  }
+let font = new Font({
+  url: settings["font.url"],
+  glyphWidth: settings["font.glyphWidth"],
+  glyphHeight: settings["font.glyphHeight"],
+});
 
-  start = () => {
-    this.world.start();
-    this.ui.start();
-  }
+let renderer = new CanvasRenderer({
+  width: settings["renderer.width"],
+  height: settings["renderer.height"],
+  scale: settings["renderer.scale"],
+  palette: settings["colors"],
+  font: font,
+});
+
+let world = new World();
+
+let ui = new UI(world, renderer);
+
+for (let command of data.commands) {
+  ui.input.bind(command.mode, command.on, command.trigger);
 }
-
-let game = new Game();
-let { world, ui } = game;
-world.events.on("message", text => ui.message(text));
-
-// TODO: Should these live in the data file?
-ui.input.bind("default", "restart", "restart");
-ui.input.bind("default", "north", "move-north");
-ui.input.bind("default", "east", "move-east");
-ui.input.bind("default", "west", "move-west");
-ui.input.bind("default", "south", "move-south");
-ui.input.bind("default", "focus-console", "focus-console");
-ui.input.bind("default", "toggle-editor", "editor-open");
-
-ui.input.bind("editor", "toggle-editor", "editor-close");
-ui.input.bind("editor", "editor-cycle", "editor-cycle");
-ui.input.bind("editor", "exit", "editor-close");
 
 ui.commands = {
   "editor-open": () => {
@@ -66,26 +71,6 @@ ui.commands = {
   "restart": (x, y) => {
     init();
   },
-  "set-hp": (value) => {
-    world.player.hp = Number(value);
-    ui.refresh();
-  },
-  "set-max-hp": (value) => {
-    world.player.maxHp = Number(value);
-    ui.refresh();
-  },
-  "set-stamina": (value) => {
-    world.player.stamina = Number(value);
-    ui.refresh();
-  },
-  "set-max-stamina": (value) => {
-    world.player.maxStamina = Number(value);
-    ui.refresh();
-  },
-  "set-souls": (value) => {
-    world.player.souls = Number(value);
-    ui.refresh();
-  },
   "set-cursor": (x, y) => {
     x = Number(x);
     y = Number(y);
@@ -95,23 +80,33 @@ ui.commands = {
     world.camera.target = Number(id);
   },
   "move-north": () => {
-    enqueue(Actions.MoveBy(0, -1));
+    world.player.setNextAction(
+      new Actions.MoveBy(0, -1)
+    );
   },
   "move-south": () => {
-    enqueue(Actions.MoveBy(0, 1));
+    world.player.setNextAction(
+      new Actions.MoveBy(0, 1)
+    );
   },
   "move-east": () => {
-    enqueue(Actions.MoveBy(1, 0));
+    world.player.setNextAction(
+      new Actions.MoveBy(1, 0)
+    );
   },
   "move-west": () => {
-    enqueue(Actions.MoveBy(-1, 0));
+    world.player.setNextAction(
+      new Actions.MoveBy(-1, 0)
+    );
   },
   "teleport": (x, y) => {
     x = Number(x);
     y = Number(y);
-    enqueue(Actions.MoveTo(x, y));
+    world.player.setNextAction(
+      new Actions.MoveTo(x, y)
+    );
   },
-  "pop": (text) => {
+  "popup": (text) => {
     ui.events.emit("popup", {
       x: world.player.x,
       y: world.player.y,
@@ -124,68 +119,68 @@ ui.commands = {
 // Command Aliases
 ui.commands["tp"] = ui.commands["teleport"];
 
-// Command Utils
-function enqueue(action) {
-  world.player.addActionAsync(action);
-}
-
-function init() {
-  world.entities = new Map();
-
+function setupSandboxArea() {
   // Test out autotiling
   for (let x = 0; x < world.map.width; x++) {
     for (let y = 0; y < world.map.height; y++) {
-      let glyph = Random.pick(2, 3, 4, 5, 6);
-      world.map.set(x, y, { type: 0, glyph });
+      world.map.set(x, y, { type: 0 });
 
       if (x === 0 || y === 0 || x === world.map.width - 1 || y === world.map.height - 1) {
-        world.map.set(x, y, { type: 1 });
+        world.map.set(x, y, { type: 2 });
       }
     }
   }
 
   world.map.set(10, 5, { type: 0 });
-  world.map.set(7, 8, { type: 2 });
-  world.map.set(10, 10, { type: 2 });
-  world.map.set(10, 11, { type: 2 });
-  world.map.set(11, 10, { type: 2 });
-  world.map.set(11, 11, { type: 2 });
-  world.map.set(12, 11, { type: 2 });
-  world.map.set(11, 12, { type: 2 });
-  world.map.autotile();
+  world.map.set(7, 8,   { type: 1 });
+  world.map.set(10, 10, { type: 1 });
+  world.map.set(10, 11, { type: 1 });
+  world.map.set(11, 10, { type: 1 });
+  world.map.set(11, 11, { type: 1 });
+  world.map.set(12, 11, { type: 1 });
+  world.map.set(11, 12, { type: 1 });
 
   world.player.x = 3;
   world.player.y = 3;
   world.player.z = 3;
-  world.spawn(world.player);
-
-  world.camera.target = world.player.id;
 
   for (let i = 0; i < 20; i++) {
-    let glyph = Random.pick(64, 65, 66, 67, 68, 69, 70, 71, 72);
-    let color = Random.pick(1, 2, 3, 4, 5, 6);
-    // @ts-ignore
-    let entity = new Actor({ glyph, color, hp: Random.int(10) });
+    let entity = new Actor("Human");
     entity.add(new Components.Wandering);
-    entity.add(new Components.Corpse);
-    entity.add(new Components.Vitals);
-    entity.add(new Components.Bleeding);
     entity.x = 1 + Random.int(world.map.width - 2);
     entity.y = 1 + Random.int(world.map.height - 2);
     world.spawn(entity);
   }
 }
 
-init();
+function init() {
+  // Reset entities
+  world.entities = new Map();
 
-ui.events.on("ready", () => {
-  // Mount the UI and start the game
+  setupSandboxArea();
+
+  world.map.autotile();
+  world.camera.target = world.player.id;
+  world.spawn(world.player);
+
+  ui.push("default");
+}
+
+function start() {
+  init();
+
+  world.start();
+  ui.start();
+
   mount("#root", ui);
-});
+}
+
+ui.events.on("ready", start);
 
 let globals = {
   Random,
-  rame: game,
+  world,
+  ui,
 };
 
 Object.assign(window, globals);

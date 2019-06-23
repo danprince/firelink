@@ -1,10 +1,13 @@
 declare namespace Rogue {
+  type Component = import("./rogue.js").Component;
+  type Action = import("./rogue.js").Action;
+
   export type Event = {
     type: string,
     [key: string]: any,
   }
 
-  export type Constructor<T> = {
+  export type ComponentClass<T extends Component> = {
     new(...args: any[]): T
   }
 
@@ -15,34 +18,25 @@ declare namespace Rogue {
     light?: number,
   }
 
-  export type Action = (
-    actor: import("./rogue").Actor
-  ) => ActionResult;
-
   export type ActionResult = {
     ok: boolean,
     message?: string,
     alt?: Action,
   };
-}
 
-declare namespace Defs {
-  export type Entity = {
-    glyph: number,
-    color: number,
+  export type EntityType = {
+    id: string,
+    extends?: string[],
+    attributes?: {
+      color?: number,
+      glyph?: number,
+    },
+    components?: {
+      [componentName: string]: any,
+    }
   }
 
-  export type Item = Entity & {
-
-  }
-
-  export type Actor = Entity & {
-    hp: number,
-    stamina: number,
-    souls: number,
-  }
-
-  export type Tile = {
+  export type TileType = {
     id: number,
     name: string,
     glyph: number,
@@ -52,29 +46,31 @@ declare namespace Defs {
     variants?: number,
   }
 
-  export type Dict<T> = {
-    [key: string]: T
-  }
-}
+  export type Binding = {
+    mode: string,
+    on: string,
+    trigger: string,
+  };
 
-declare namespace RogueUI {
-  export type FontConfig = {
-    url: string,
-    glyphWidth: number,
-    glyphHeight: number,
-  }
+  export namespace UI {
+    export type FontConfig = {
+      url: string,
+      glyphWidth: number,
+      glyphHeight: number,
+    }
 
-  export type RendererConfig = {
-    width: number,
-    height: number,
-    font: import("./ui").Font,
-    palette: { [key: number]: string },
-    scale?: number,
-  }
+    export type RendererConfig = {
+      width: number,
+      height: number,
+      font: import("./ui").Font,
+      palette: { [key: number]: string },
+      scale?: number,
+    }
 
-  export type CommandDef = {
-    group: string,
-    button: string,
-    action: string,
+    export type Binding = {
+      mode: string,
+      button: string,
+      action: string,
+    }
   }
 }

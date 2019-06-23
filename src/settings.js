@@ -1,14 +1,14 @@
 export default {
   "debug": true,
-  "map.width": 40,
-  "map.height": 40,
+  "map.width": 10,
+  "map.height": 10,
   "renderer.width": 20,
   "renderer.height": 20,
   "renderer.scale": 2.25,
-  "renderer.font.url": "assets/10x10.png",
-  "renderer.font.glyphWidth": 10,
-  "renderer.font.glyphHeight": 10,
-  "renderer.colors": [
+  "font.url": "assets/10x10.png",
+  "font.glyphWidth": 10,
+  "font.glyphHeight": 10,
+  "colors": [
     "#222321", // 0 black
     "#eaeaea", // 1 white
     "#a33333", // 2 red

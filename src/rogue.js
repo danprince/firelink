@@ -1,32 +1,128 @@
 import settings from "./settings.js";
-import data from "./data.js";
 import * as Utils from "./utils.js";
 
-/**
- * @template Target
- */
-export class Component {
-  static target = null;
+let { assert } = Utils;
+
+export let Inheritance = {
+  /**
+   * @param {string} id
+   */
+  getAncestors(id) {
+    let ancestors = [];
+    let stack = [id];
+    let visited = new Set();
+    let root = id;
+
+    while (stack.length) {
+      let id = stack.pop();
+      let type = Entity.registry[id];
+
+      if (type == null) {
+        console.error(`entity is not defined "${id}" (while parsing "${root}")`);
+        continue;
+      }
+
+      visited.add(id);
+      ancestors.unshift(type);
+
+      if (type.extends) {
+        for (let id of type.extends) {
+          if (!visited.has(id)) {
+            stack.push(id);
+          }
+        }
+      }
+    }
+
+    return ancestors;
+  },
 
   /**
-   * @type {Target}
+   * @param {string} id
+   */
+  getInheritedProps(id) {
+    /** @type {Component[]} */
+    let components = [];
+
+    /** @type {string[]} */
+    let types = [];
+
+    /** @type {Rogue.EntityType["attributes"]} */
+    let attributes = {};
+
+    let ancestors = this.getAncestors(id);
+    let spec = {};
+
+    for (let type of ancestors) {
+      types.push(type.id);
+      Object.assign(spec, type.components);
+      Object.assign(attributes, type.attributes);
+    }
+
+    for (let id in spec) {
+      let params = spec[id];
+      let component = Component.create(id, params);
+
+      if (component) {
+        components.push(component);
+      }
+    }
+
+    return { types, components, attributes };
+  }
+};
+
+export class Component {
+  /**
+   * @type {{ [id: string]: Rogue.ComponentClass<any> }}
+   */
+  static registry = {};
+
+  /**
+   * @param {typeof Component.registry} components
+   */
+  static register(components) {
+    Object.assign(this.registry, components);
+  }
+
+  /**
+   * @param {string} id
+   */
+  static exists(id) {
+    return id in this.registry;
+  }
+
+  /**
+   * @param {string} id
+   */
+  static create(id, params) {
+    let constructor = Component.registry[id];
+
+    if (Component.exists(id)) {
+      return new constructor(params);
+    } else {
+      console.error(`Component does not exist: "${id}"`);
+      return null;
+    }
+  }
+
+  get name() {
+    return this.constructor.name;
+  }
+
+  /**
+   * @type {Entity}
    */
   entity = null;
 
   /**
-   * Checks whether the component can be added to a specific entity. By
-   * default it checks that the entity is an instanceof the component's
-   * static "target" property (if provided).
+   * Checks whether the component can be added to a specific entity.
    *
    * @param {Entity} entity
+   * @return {boolean}
    */
   rules(entity) {
-    let constructor = /** @type {typeof Component} */ (this.constructor);
-
-    return (
-      constructor.target == null ||
-      entity instanceof constructor.target
-    );
+    return true;
   }
 
   onEnter() {}
@@ -39,34 +135,56 @@ export class Component {
 }
 
 export class Entity {
-  static counter = 0;
+  /**
+   * @type {{ [id: string]: Rogue.EntityType }}
+   */
+  static registry = {};
 
-  static getNextId() {
-    return this.counter += 1;
+  /**
+   * @param {Rogue.EntityType[]} types
+   */
+  static register(types) {
+    for (let type of types) {
+      this.registry[type.id] = type;
+    }
   }
 
   /**
-   * @param {Defs.Entity} def
+   * @param {string} type
    */
-  constructor(def) {
-    this.def = def;
-    this.glyph = def.glyph;
-    this.color = def.color;
-    this.id = Entity.getNextId();
+  constructor(type) {
+    let {
+      types,
+      components,
+      attributes,
+    } = Inheritance.getInheritedProps(type);
+
+    this.id = Utils.uid();
+    this.type = Entity.registry[type];
+    this.types = new Set(types);
     this.active = false;
     this.x = 0;
     this.y = 0;
     this.z = 0;
+    this.glyph = attributes.glyph;
+    this.color = attributes.color;
 
-    /**
-     * @type {World}
-     */
+    /** @type {World} */
     this.world = null;
 
-    /**
-     * @type {Component[]}
-     */
+    /** @type {Component[]} */
     this.components = [];
+
+    for (let component of components) {
+      this.add(component);
+    }
+  }
+
+  /**
+   * @param {string} type
+   */
+  is(type) {
+    return this.types.has(type);
   }
 
   /**
@@ -87,7 +205,7 @@ export class Entity {
    */
   add(component) {
     if (!component.rules(this)) {
-      console.warn("Can't add")
+      console.error(`Can't add ${component.name} to ${this.type.id}`)
       return;
     }
 
@@ -112,40 +230,26 @@ export class Entity {
   }
 
   /**
-   * @template T
-   * @param {Rogue.Constructor<T>} constructor
+   * @template {Component} T
+   * @param {Rogue.ComponentClass<T>} constructor
    * @returns {T}
    */
   get(constructor) {
-    let component = this.components.find(component => {
-      return component.constructor === constructor;
-    });
-
-    return /** @type {?} */ (component);
+    return /** @type {?} */ (
+      this.components.find(component => {
+        return component instanceof constructor;
+      })
+    );
   }
 
   /**
-   * @param {Rogue.Constructor<any>} constructor
+   * @param {Rogue.ComponentClass<any>} constructor
    * @return {boolean}
    */
   has(constructor) {
     return this.components.some(component => {
-      return component.constructor === constructor;
+      return component instanceof constructor;
     });
-  }
-
-  /**
-   * @return {Rogue.Action | Promise<Rogue.Action>}
-   */
-  takeTurn() {
-    // Default action is to rest
-    let action = () => ({ ok: true });
-
-    // Request an action from any of our components
-    let event = { type: "request-action", action };
-    this.send(event);
-
-    return event.action;
   }
 
   onEnter() {
@@ -165,26 +269,11 @@ export class Entity {
   }
 
   onBeforeTurn() {
-    this.send("before-turn");
+    this.send({ type: "before-turn" });
   }
 
   onAfterTurn() {
-    this.send("after-turn");
-  }
-
-  /**
-   * @param {Rogue.Action} action
-   */
-  onBeforeAction(action) {
-    this.send({ type: "before-action", action });
-  }
-
-  /**
-   * @param {Rogue.Action} action
-   * @param {Rogue.ActionResult} result
-   */
-  onAfterAction(action, result) {
-    this.send({ type: "after-action", action, result });
+    this.send({ type: "after-turn" });
   }
 
   /**
@@ -197,12 +286,10 @@ export class Entity {
 
 export class Item extends Entity {
   /**
-   * @param {Defs.Item} def
+   * @param {string} type
    */
-  constructor(def) {
-    super(def);
-
-    this.def = def;
+  constructor(type) {
+    super(type);
 
     // Render items above entities
     this.z = 1;
@@ -211,100 +298,59 @@ export class Item extends Entity {
 
 export class Actor extends Entity {
   /**
-   * @param {Defs.Actor} def
+   * @param {string} type
    */
-  constructor(def) {
-    super(def);
-
-    this.def = def;
-    this.maxHp = def.hp;
-    this.hp = def.hp;
-    this.maxStamina = def.stamina;
-    this.stamina = def.stamina;
-    this.souls = def.souls;
-
+  constructor(type) {
+    super(type);
     // Render actors above items
     this.z = 2;
   }
 
-  hasStamina() {
-    return this.stamina > 0;
-  }
-
-  hasFullStamina() {
-    return this.stamina === this.maxStamina;
-  }
-
-  hasFullHp() {
-    return this.hp === this.maxHp;
+  /**
+   * @param {Action} action
+   */
+  onBeforeAction(action) {
+    this.send({ type: "before-action", action });
   }
 
   /**
-   * @param {number} x
-   * @param {number} y
+   * @param {Action} action
+   * @param {Rogue.ActionResult} result
    */
-  moveTo(x, y) {
-    this.x = x;
-    this.y = y;
+  onAfterAction(action, result) {
+    this.send({ type: "after-action", action, result });
   }
 
   /**
-   * @param {number} dx
-   * @param {number} dy
+   * @return {Action | Promise<Action>}
    */
-  moveBy(dx, dy) {
-    this.moveTo(this.x + dx, this.y + dy);
-  }
-
-  /**
-   * @param {number} value
-   */
-  setHp(value) {
-    this.hp = Utils.clamp(0, value, this.maxHp);
-
-    if (this.hp === 0) {
-      this.send("death");
-    }
-  }
-
-  /**
-   * @param {number} amount
-   */
-  changeHp(amount) {
-    this.setHp(this.hp + amount);
-  }
-
-  /**
-   * @param {number} value
-   */
-  setStamina(value) {
-    this.stamina = Utils.clamp(0, value, this.maxStamina);
-  }
-
-  /**
-   * @param {number} amount
-   */
-  changeStamina(amount) {
-    this.setStamina(this.stamina + amount);
-  }
-
   takeTurn() {
-    // TODO: Only take a turn if this.hasStamina()
-    return super.takeTurn();
+    // Default action is a no-op
+    let defaultAction = new Action();
+
+    // Request an action from any of our components
+    let event = { type: "request-action", action: null };
+
+    this.send(event);
+
+    if (event.action) {
+      return event.action;
+    } else {
+      return defaultAction;
+    }
   }
 }
 
 class Player extends Actor {
   /**
-   * @param {Rogue.Action} action
+   * @param {Action} action
    */
-  addActionAsync = (action) => {};
+  setNextAction = (action) => {};
 
   /**
-   * @param {Rogue.Action} action
    * @param {Rogue.ActionResult} result
    */
-  onAfterAction(action, result) {
+  onAfterAction(_, result) {
     if (result.message) {
       this.world.message(result.message);
     }
@@ -317,47 +363,23 @@ class Player extends Actor {
    */
   async takeTurn() {
     return new Promise(resolve => {
-      this.addActionAsync = resolve;
+      this.setNextAction = resolve;
     });
   }
 }
 
-export let Random = {
-  /**
-   * @template T
-   * @param {T[]} items
-   */
-  pick(...items) {
-    return items[Math.floor(Math.random() * items.length)];
-  },
-
-  /**
-   * @param {number} size
-   */
-  int(size) {
-    return Math.floor(Math.random() * size);
-  },
-
-  /**
-   * @param {string} code - 1d6, 2d10 etc
-   */
-  dice(code) {
-    let parts = code.split("d");
-
-    let count = Number(parts[0]);
-    let sides = Number(parts[1]);
-
-    let total = 0;
-
-    for (let i = 0; i < count; i++) {
-      total += 1 + Random.int(sides);
-    }
-
-    return total;
-  }
-};
-
 export class TileMap {
+  /**
+   * @type {{ [id: string]: Rogue.TileType }}
+   */
+  static registry = {};
+
+  /**
+   * @param {typeof TileMap.registry} types
+   */
+  static register(types) {
+    Object.assign(this.registry, types);
+  }
 
   /**
    * @param {number} width
@@ -402,17 +424,17 @@ export class TileMap {
         let tile = this.get(x, y);
         if (tile == null) continue;
 
-        let def = data.tiles[tile.type];
-        if (def == null) continue;
+        let type = TileMap.registry[tile.type];
+        if (type == null) continue;
 
         // If this tile has variants and hasn't already been assigned
         // a glyph, pick one of the variant glyphs at random.
-        if (def.variants && tile.glyph == null) {
-          tile.glyph = def.glyph + Random.int(def.variants);
+        if (type.variants && tile.glyph == null) {
+          tile.glyph = type.glyph + Random.int(type.variants);
           continue;
         }
 
-        if (!def.autotile) continue;
+        if (!type.autotile) continue;
 
         let n = this.get(x, y - 1);
         let s = this.get(x, y + 1);
@@ -426,7 +448,9 @@ export class TileMap {
           Number(w && w.type === tile.type) << 0
         );
 
-        tile.glyph = def.glyph + mask;
+        // The font is laid out so that we can use the mask as an
+        // index offset to get the correct glyph.
+        tile.glyph = type.glyph + mask;
       }
     }
   }
@@ -440,10 +464,12 @@ export class World {
 
   events = new Utils.Emitter();
 
-  /** @type {Map<number, Entity>} */
+  /**
+   * @type {Map<number, Entity>}
+   */
   entities = new Map();
 
-  player = new Player(data.actors.player);
+  player = new Player("Player");
   cursor = { x: 0, y: 0 };
   camera = { x: 0, y: 0 };
   ticks = 0;
@@ -516,21 +542,58 @@ export class World {
   }
 
   async start() {
+    const MAX_ACTION_TRIES = settings["rules.maxActionTries"];
+    const DEBUG = settings["debug"];
+
     while (true) {
+      let stats = { entities: 0, actions: 0 };
+
       for (let [, entity] of this.entities) {
+        if (DEBUG) {
+          stats.entities += 1;
+        }
+
         entity.onBeforeTurn();
 
-        // Try actions until one succeeds
-        while (true) {
-          let action = await entity.takeTurn();
-          let result = this.tryAction(entity, action);
+        if (entity instanceof Actor) {
+          // Try actions until one succeeds
+          while (true) {
+            let actor = entity;
+            let action = await actor.takeTurn();
+            let result = null;
+            let tries = 0;
 
-          if (entity instanceof Player) {
-            if (result.ok) break;
-          } else {
-            // Prevent non-player characters getting stuck if they
-            // are unable to produce an action
-            break;
+            while (tries < MAX_ACTION_TRIES) {
+              actor.onBeforeAction(action);
+              result = action.perform(actor, this);
+              actor.onAfterAction(action, result);
+
+              if (DEBUG) {
+                stats.actions += 1;
+              }
+
+              if (result.ok) {
+                break;
+              }
+
+              if (result.alt) {
+                action = result.alt;
+              }
+
+              tries++;
+            }
+
+            if (tries >= MAX_ACTION_TRIES) {
+              break;
+            }
+
+            if (entity instanceof Player) {
+              if (result.ok) break;
+            } else {
+              // Prevent non-player characters getting stuck if they
+              // are unable to produce an action
+              break;
+            }
           }
         }
 
@@ -539,36 +602,10 @@ export class World {
 
       this.turns += 1;
       this.events.emit("turn", this.turns);
-    }
-  }
 
-  /**
-   * @param {Entity} entity
-   * @param {any} action
-   */
-  tryAction(entity, action, tries=0) {
-    if (tries > settings["rules.maxActionTries"]) {
-      this.debug(`Entity took too many tries`, entity, action);
-      return { ok: true };
-    }
-
-    entity.onBeforeAction(action);
-    let result = action(entity, this);
-    entity.onAfterAction(action, result);
-
-    if (result.alt) {
-      return this.tryAction(entity, result.alt, tries + 1);
-    }
-
-    return result;
-  }
-
-  /**
-   * @param {any[]} args
-   */
-  debug(...args) {
-    if (settings["debug"]) {
-      console.warn(...args);
+      if (DEBUG) {
+        this.events.emit("stats", stats);
+      }
     }
   }
 
@@ -580,26 +617,71 @@ export class World {
   }
 }
 
-/**
- * @param {string} [message]
- * @return {Rogue.ActionResult}
- */
-export function succeed(message) {
-  return { ok: true, message };
+export class Action {
+  /**
+   * @param {string} [message]
+   * @return {Rogue.ActionResult}
+   */
+  static succeed(message) {
+    return { ok: true, message };
+  }
+
+  /**
+   * @param {string} [message]
+   * @return {Rogue.ActionResult}
+   */
+  static fail(message) {
+    return { ok: false, message };
+  }
+
+  /**
+   * @param {Action} action
+   * @return {Rogue.ActionResult}
+   */
+  static alternate(action) {
+    return { ok: false, alt: action };
+  }
+
+  /**
+   * @param {Entity} entity
+   * @return {Rogue.ActionResult}
+   */
+  perform(entity) {
+    return Action.fail();
+  }
 }
 
-/**
- * @param {string} [message]
- * @return {Rogue.ActionResult}
- */
-export function fail(message) {
-  return { ok: false, message };
-}
+export let Random = {
+  /**
+   * @template T
+   * @param {T[]} items
+   */
+  pick(...items) {
+    return items[Math.floor(Math.random() * items.length)];
+  },
 
-/**
- * @param {Rogue.Action} action
- * @return {Rogue.ActionResult}
- */
-export function alternate(action) {
-  return { ok: false, alt: action };
-}
+  /**
+   * @param {number} size
+   */
+  int(size) {
+    return Math.floor(Math.random() * size);
+  },
+
+  /**
+   * @param {string} code - 1d6, 2d10 etc
+   */
+  dice(code) {
+    let parts = code.split("d");
+
+    let count = Number(parts[0]);
+    let sides = Number(parts[1]);
+
+    let total = 0;
+
+    for (let i = 0; i < count; i++) {
+      total += 1 + Random.int(sides);
+    }
+
+    return total;
+  }
+};

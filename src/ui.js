@@ -4,7 +4,7 @@ import { Emitter } from "./utils.js";
 
 export class Font {
   /**
-   * @param {RogueUI.FontConfig} config
+   * @param {Rogue.UI.FontConfig} config
    */
   constructor(config) {
     this.image = new Image();
@@ -67,7 +67,7 @@ export class Console {
 
 export class Renderer {
   /**
-   * @param {RogueUI.RendererConfig} config
+   * @param {Rogue.UI.RendererConfig} config
    */
   constructor({ width, height, font, palette, scale=1 }) {
     this.palette = palette;
@@ -107,7 +107,7 @@ export class Renderer {
 
 export class CanvasRenderer extends Renderer {
   /**
-   * @param {RogueUI.RendererConfig} config
+   * @param {Rogue.UI.RendererConfig} config
    */
   constructor(config) {
     super(config);
@@ -231,33 +231,29 @@ export class CanvasRenderer extends Renderer {
 }
 
 export class Input {
-  groups = [new Set(["default"])];
+  /** @type {Set<string>[]} */
+  stack = [new Set()];
 
-  /**
-   * @type {RogueUI.CommandDef[]}
-   */
-  commands = [];
+  /** @type {Rogue.UI.Binding[]} */
+  bindings = [];
 
+  /** @type {((action: string) => void)[]} */
   listeners = [];
 
-  getCurrentGroup() {
-    return this.groups[this.groups.length - 1];
-  }
-
   getActiveModes() {
-    return this.groups[this.groups.length - 1];
+    return this.stack[this.stack.length - 1];
   }
 
   /**
    * @param {string} mode
    */
   push(mode, exclusive=false) {
-    let currentGroup = this.getCurrentGroup();
+    let modes = this.getActiveModes();
 
     if (exclusive) {
-      this.groups.push(new Set([mode]));
+      this.stack.push(new Set([mode]));
     } else {
-      currentGroup.add(mode);
+      modes.add(mode);
     }
   }
 
@@ -265,30 +261,63 @@ export class Input {
    * @param {string} mode
    */
   pop(mode) {
-    let group = this.getCurrentGroup();
-    group.delete(mode);
+    let modes = this.getActiveModes();
 
-    if (group.size === 0) {
-      this.groups.pop();
+    modes.delete(mode);
+
+    if (modes.size === 0 && this.stack.length > 0) {
+      this.stack.pop();
     }
   }
 
+  /**
+   * @param {(action: string) => void} listener
+   */
   listen(listener) {
     this.listeners.push(listener);
   }
 
+  /**
+   * @param {(action: string) => void} listener
+   */
   unlisten(listener) {
     this.listeners = this.listeners.filter(other => other !== listener);
   }
 
   /**
-   * @param {string} group
+   * @param {string} mode
    * @param {string} name
    * @param {string} action
    */
-  bind(group, name, action) {
+  bind(mode, name, action) {
     for (let button of settings["controls"][name]) {
-      this.commands.push({ group, button, action });
+      this.bindings.push({ mode, button, action });
+    }
+  }
+
+  /**
+   * @param {string} button
+   */
+  fire(button) {
+    let modes = this.getActiveModes();
+
+    // Take a copy of this group, so that it can't change whilst we
+    // are processing this input event.
+    modes = new Set(modes);
+
+    for (let command of this.bindings) {
+      if (command.button === button && modes.has(command.mode)) {
+        this.trigger(command.action);
+      }
+    }
+  }
+
+  /**
+   * @param {string} action
+   */
+  trigger(action) {
+    for (let listener of this.listeners) {
+      listener(action);
     }
   }
 
@@ -309,32 +338,6 @@ export class Input {
     }
   }
 
-  /**
-   * @param {string} button
-   */
-  fire(button) {
-    let group = this.getCurrentGroup();
-
-    // Take a copy of this group, so that it can't change whilst we
-    // are processing this input event.
-    group = new Set(group);
-
-    for (let command of this.commands) {
-      if (command.button === button && group.has(command.group)) {
-        this.trigger(command.action);
-      }
-    }
-  }
-
-  /**
-   * @param {string} action
-   */
-  trigger(action) {
-    for (let listener of this.listeners) {
-      listener(action);
-    }
-  }
-
   addEventListeners() {
     window.addEventListener("keydown", this.handleEvent);
     window.addEventListener("mousedown", this.handleEvent);
@@ -352,31 +355,13 @@ export class UI {
   input = new Input();
   ready = false;
 
-  renderer = new CanvasRenderer({
-    width: settings["renderer.width"],
-    height: settings["renderer.height"],
-    scale: settings["renderer.scale"],
-    palette: settings["renderer.colors"],
-    font: new Font({
-      url: settings["renderer.font.url"],
-      glyphWidth: settings["renderer.font.glyphWidth"],
-      glyphHeight: settings["renderer.font.glyphHeight"],
-    }),
-  });
-
   /**
    * @param {World} world
+   * @param {Renderer} renderer
    */
-  constructor(world) {
+  constructor(world, renderer) {
     this.world = world;
-
-    this.events.on("dispatch", cmd => {
-      if (cmd.name in this.commands) {
-        this.runCommand(cmd.name, cmd.args);
-      } else {
-        this.events.emit("console-message", "No such command");
-      }
-    });
+    this.renderer = renderer;
 
     this.renderer.font.image.addEventListener("load", () => {
       this.ready = true;
@@ -384,60 +369,40 @@ export class UI {
     });
   }
 
-  runCommand(name, args) {
+  start() {
+    this.input.addEventListeners();
+
+    this.input.listen(event => {
+      this.events.emit(event);
+      this.run(event, []);
+    });
+
+    this.events.on("dispatch", cmd => {
+      if (cmd.name in this.commands) {
+        this.run(cmd.name, cmd.args);
+      } else {
+        this.events.emit("console-message", "No such command");
+      }
+    });
+
+    this.world.events.on("message", text => this.message(text));
+
+    let colors = settings["colors"];
+    document.body.style.background = colors[0];
+    document.body.style.color = colors[1];
+  }
+
+  /**
+   * @param {string} name
+   * @param {any[]} args
+   */
+  run(name, args) {
     if (name in this.commands) {
       this.commands[name](...args);
       return true;
     }
 
     return false;
-  }
-
-  start() {
-    this.input.addEventListeners();
-
-    this.input.listen(event => {
-      this.events.emit(event);
-      this.runCommand(event, []);
-    });
-
-    document.body.style.background = settings["renderer.colors"][0];
-    document.body.style.color = settings["renderer.colors"][1];
-  }
-
-  /**
-   * @param {string} text
-   */
-  message(text) {
-    this.events.emit("set-message", text);
-  }
-
-  refresh() {
-    this.events.emit("refresh");
-  }
-
-  popup(popup) {
-    this.events.emit("popup", popup);
-  }
-
-  /**
-   * @param {string} mode
-   */
-  push(mode, exclusive=false) {
-    this.input.push(mode, exclusive);
-
-    let modes = Array.from(this.input.getActiveModes());
-    this.events.emit("update-mode", modes);
-  }
-
-  /**
-   * @param {string} mode
-   */
-  pop(mode) {
-    this.input.pop(mode);
-
-    let modes = Array.from(this.input.getActiveModes());
-    this.events.emit("update-mode", modes);
   }
 
   /**
@@ -462,5 +427,44 @@ export class UI {
       worldX - this.world.camera.x,
       worldY - this.world.camera.y,
     );
+  }
+
+  /**
+   * @param {string} mode
+   */
+  push(mode, exclusive=false) {
+    this.input.push(mode, exclusive);
+
+    let modes = Array.from(this.input.getActiveModes());
+    this.events.emit("update-mode", modes);
+  }
+
+  /**
+   * @param {string} mode
+   */
+  pop(mode) {
+    this.input.pop(mode);
+
+    let modes = Array.from(this.input.getActiveModes());
+    this.events.emit("update-mode", modes);
+  }
+
+
+  refresh() {
+    this.events.emit("refresh");
+  }
+
+  /**
+   * @param {string} text
+   */
+  message(text) {
+    this.events.emit("set-message", text);
+  }
+
+  /**
+   * @param {{ x: number, y: number, body: string }} popup
+   */
+  popup(popup) {
+    this.events.emit("popup", popup);
   }
 }

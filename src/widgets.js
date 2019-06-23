@@ -1,9 +1,10 @@
 // @ts-ignore (typescript can't find external modules)
-import * as Preact from "https://unpkg.com/@danprince/preact-app@latest";
+import * as Preact from "https://unpkg.com/@danprince/preact-app";
 import * as Utils from "./utils.js";
+import * as Rogue from "./rogue.js";
+import { Hitpoints, Stamina } from "./components.js";
 import { Font, CanvasRenderer } from "./ui.js";
 import settings from "./settings.js";
-import data from "./data.js";
 
 let {
   html,
@@ -24,20 +25,20 @@ let classes = (...classNames) => classNames.filter(x => x).join(" ");
 /**
  * @param {number} index
  */
-let color = index => settings["renderer.colors"][index];
+let getColor = index => settings["colors"][index];
 
 /**
  * @param {number} x
  */
 let scaleX = x => {
-  return x * settings["renderer.font.glyphWidth"] * settings["renderer.scale"];
+  return x * settings["font.glyphWidth"] * settings["renderer.scale"];
 };
 
 /**
  * @param {number} y
  */
 let scaleY = y => {
-  return y * settings["renderer.font.glyphHeight"] * settings["renderer.scale"];
+  return y * settings["font.glyphHeight"] * settings["renderer.scale"];
 };
 
 /**
@@ -107,11 +108,11 @@ let Glyphs = {
     width: 1,
     height: 1,
     scale: 1,
-    palette: settings["renderer.colors"],
+    palette: settings["colors"],
     font: new Font({
-      url: settings["renderer.font.url"],
-      glyphWidth: settings["renderer.font.glyphWidth"],
-      glyphHeight: settings["renderer.font.glyphHeight"],
+      url: settings["font.url"],
+      glyphWidth: settings["font.glyphWidth"],
+      glyphHeight: settings["font.glyphHeight"],
     }),
   }),
 
@@ -160,7 +161,7 @@ let Text = ({ children }) => {
           let style = {
             lineHeight: `${4 + scaleY(1)}px`,
             height: scaleY(1),
-            color: color(part.color),
+            color: getColor(part.color),
           };
 
           return html`<span style=${style}>${part.text}</span>`;
@@ -194,7 +195,7 @@ let Box = ({
   if (direction) style.flexDirection = direction;
   if (wrap) style.flexWrap = wrap;
 
-  let className = classes(`box`, rest.class);
+  let className = classes(rest.class, `box`);
 
   return html`<${as} ...${rest} class=${className} style=${style} />`;
 };
@@ -263,7 +264,7 @@ let Console = () => {
 }
 
 let Palette = () => {
-  let colors = settings["renderer.colors"];
+  let colors = settings["colors"];
 
   return html`
     <${Box} class="palette" width=${8} wrap="wrap">
@@ -283,10 +284,11 @@ let Palette = () => {
 
 let Debug = () => {
   let { ui } = useContext(Context);
-  let [modes, setModes] = useState([]);
+  let [modes, setModes] = useState([...ui.input.getActiveModes()]);
   let [cursor, setCursor] = useState(null);
   let [entity, setEntity] = useState(null);
   let [rendererStats, setRendererStats] = useState(null);
+  let [worldStats, setWorldStats] = useState(null);
   let [turns, setTurns] = useState(0);
 
   useEventListener("set-cursor", cursor => {
@@ -298,17 +300,29 @@ let Debug = () => {
   useEventListener("update-mode", setModes);
   useRendererEventListener("stats", setRendererStats);
   useWorldEventListener("turn", setTurns);
+  useWorldEventListener("stats", setWorldStats);
 
   return html`
     <${Box} class="debug" direction="column">
       <div>mode=${modes.join(" | ")}</div>
+      <div class="debug-divider"></div>
+      <${DebugDivider} />
       <div>x=${cursor && cursor.x} y=${cursor && cursor.y}</div>
       <div>entity=${entity && entity.id}</div>
       <div>turns=${turns}</div>
       <div>draws=${rendererStats && rendererStats.calls}</div>
+      <${DebugDivider} />
+      <div>entities=${worldStats && worldStats.entities}</div>
+      <div>actions=${worldStats && worldStats.actions}</div>
     </${Box}>
   `;
 };
+
+let DebugDivider = ({ length=15 }) => html`
+  <div style=${{ color: getColor(9) }}>
+   ${"-".repeat(length)}
+  </div>
+`;
 
 let Popup = ({ x, y, width, height, children, onRequestClose }) => {
   let { ui } = useContext(Context);
@@ -412,9 +426,9 @@ let Viewport = ({ children }) => {
           continue;
         }
 
-        let def = data.tiles[tile.type];
-        let glyph = tile.glyph || def.glyph;
-        let color = tile.color || def.color;
+        let type = Rogue.TileMap.registry[tile.type];
+        let glyph = tile.glyph || type.glyph;
+        let color = tile.color || type.color;
 
         if (tile) {
           console.put(glyph, color, x, y, 0);
@@ -519,11 +533,14 @@ let Status = () => {
   let { ui } = useContext(Context);
   let { player } = ui.world;
 
+  let hitpoints = player.get(Hitpoints);
+  let stamina = player.get(Stamina);
+
   return html`
     <${Box} class=status justify=space-between>
-      <${Bar} length=${player.maxHp} value=${player.hp} color=${2} />
+      <${Bar} length=${hitpoints.max} value=${hitpoints.value} color=${2} />
       <${Box} height={1}>${player.souls}</${Box}>
-      <${Bar} length=${player.maxStamina} value=${player.stamina} color=${3} />
+      <${Bar} length=${stamina.max} value=${stamina.value} color=${3} />
     </${Box}>
   `;
 };
