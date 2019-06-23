@@ -1,7 +1,15 @@
-import { Component, Random, Entity } from "./rogue.js";
+import { Component, Random, Actor } from "./rogue.js";
 import * as Actions from "./actions.js";
 
+/**
+ * @extends {Component<Actor>}
+ */
 export class Hitpoints extends Component {
+  target = Actor
+
+  /**
+   * @param {number} value
+   */
   constructor(value) {
     super();
     this.value = value;
@@ -9,7 +17,15 @@ export class Hitpoints extends Component {
   }
 }
 
+/**
+ * @extends {Component<Actor>}
+ */
 export class Stamina extends Component {
+  target = Actor
+
+  /**
+   * @param {number} value
+   */
   constructor(value) {
     super();
     this.value = value;
@@ -17,7 +33,12 @@ export class Stamina extends Component {
   }
 }
 
+/**
+ * @extends {Component<Actor>}
+ */
 export class Wandering extends Component {
+  target = Actor
+
   onEvent(event) {
     switch (event.type) {
       case "request-action":

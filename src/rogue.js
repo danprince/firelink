@@ -72,6 +72,9 @@ export let Inheritance = {
   }
 };
 
+/**
+ * @template T
+ */
 export class Component {
   /**
    * @type {{ [id: string]: Rogue.ComponentClass<any> }}
@@ -110,8 +113,12 @@ export class Component {
     return this.constructor.name;
   }
 
+  get target() {
+    return Entity;
+  }
+
   /**
-   * @type {Entity}
+   * @type {T}
    */
   entity = null;
 
@@ -119,9 +126,13 @@ export class Component {
    * Checks whether the component can be added to a specific entity.
    *
    * @param {Entity} entity
-   * @return {boolean}
+   * @return {string | true}
    */
-  rules(entity) {
+  validate(entity) {
+    if (this.target && !(entity instanceof this.target)) {
+      return `"${this.name}" component can only be added to ${this.target.name}`;
+    }
+
     return true;
   }
 
@@ -204,9 +215,10 @@ export class Entity {
    * @param {Component} component
    */
   add(component) {
-    if (!component.rules(this)) {
-      console.error(`Can't add ${component.name} to ${this.type.id}`)
-      return;
+    let result = component.validate(this);
+
+    if (result !== true) {
+      return console.error(`Can't add "${component.name}" component to ${this.type.id}!\n\n${result}`)
     }
 
     this.components.push(component);

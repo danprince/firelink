@@ -1,10 +1,15 @@
 declare namespace Rogue {
-  type Component = import("./rogue.js").Component;
+  type Entity = import("./rogue.js").Entity;
+  type Component<T=Entity> = import("./rogue.js").Component<T>;
   type Action = import("./rogue.js").Action;
 
   export type Event = {
     type: string,
     [key: string]: any,
+  }
+
+  export type Constructor<T> = {
+    new(...args: any[]): T
   }
 
   export type ComponentClass<T extends Component> = {
