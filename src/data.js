@@ -8,6 +8,7 @@ export default {
     { mode: "default", "on": "toggle-editor", trigger: "editor-open" },
     { mode: "default", "on": "focus-console", trigger: "focus-console" },
 
+    { mode: "default", "on": "rest", trigger: "rest" },
     { mode: "default", "on": "north", trigger: "walk-north" },
     { mode: "default", "on": "east", trigger: "walk-east" },
     { mode: "default", "on": "south", trigger: "walk-south" },

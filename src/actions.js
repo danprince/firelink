@@ -90,8 +90,8 @@ export class Walk extends Action {
     let y = entity.y + steps.y;
     let stamina = entity.get(Stamina);
 
-    if (stamina.value < stamina.max) {
-      stamina.value += 1;
+    if (stamina && stamina.value === 0) {
+      return fail("You don't have enough stamina to walk");
     }
 
     return alternate(

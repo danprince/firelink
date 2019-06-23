@@ -81,6 +81,11 @@ ui.commands = {
   "set-camera-target": (id) => {
     world.camera.target = Number(id);
   },
+  "rest": () => {
+    world.player.setNextAction(
+      new Actions.Rest()
+    );
+  },
   "walk-north": () => {
     world.player.setNextAction(
       new Actions.Walk(Directions.North)

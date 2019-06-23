@@ -48,7 +48,8 @@ export default {
     "south": ["j"],
     "west": ["h"],
     "dodge": ["shift"],
-    "restart": ["r"],
+    "restart": ["q"],
+    "rest": ["r"],
   },
   "rules.maxActionTries": 10,
 }
