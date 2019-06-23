@@ -4,23 +4,23 @@ export default {
    */
   commands: [
     // Default controls
-    { mode: "default", "on": "restart",       trigger: "restart" },
+    { mode: "default", "on": "restart", trigger: "restart" },
     { mode: "default", "on": "toggle-editor", trigger: "editor-open" },
     { mode: "default", "on": "focus-console", trigger: "focus-console" },
 
-    { mode: "default", "on": "north",         trigger: "move-north" },
-    { mode: "default", "on": "east",          trigger: "move-east" },
-    { mode: "default", "on": "south",         trigger: "move-south" },
-    { mode: "default", "on": "west",          trigger: "move-west" },
-    { mode: "default", "on": ["dodge", "north"], trigger: "move-north" },
-    { mode: "default", "on": ["dodge", "east"],  trigger: "move-east" },
-    { mode: "default", "on": ["dodge", "south"], trigger: "move-south" },
-    { mode: "default", "on": ["dodge", "west"],  trigger: "move-west" },
+    { mode: "default", "on": "north", trigger: "walk-north" },
+    { mode: "default", "on": "east", trigger: "walk-east" },
+    { mode: "default", "on": "south", trigger: "walk-south" },
+    { mode: "default", "on": "west", trigger: "walk-west" },
+    { mode: "default", "on": ["dodge", "north"], trigger: "dodge-north" },
+    { mode: "default", "on": ["dodge", "east"], trigger: "dodge-east" },
+    { mode: "default", "on": ["dodge", "south"], trigger: "dodge-south" },
+    { mode: "default", "on": ["dodge", "west"], trigger: "dodge-west" },
 
     // Editor controls
     { mode: "editor", "on": "toggle-editor", trigger: "editor-close" },
-    { mode: "editor", "on": "editor-cycle",  trigger: "editor-cycle" },
-    { mode: "editor", "on": "exit",          trigger: "editor-close" },
+    { mode: "editor", "on": "editor-cycle", trigger: "editor-cycle" },
+    { mode: "editor", "on": "exit", trigger: "editor-close" },
   ],
 
   /**

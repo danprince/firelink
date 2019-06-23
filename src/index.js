@@ -80,24 +80,44 @@ ui.commands = {
   "set-camera-target": (id) => {
     world.camera.target = Number(id);
   },
-  "move-north": () => {
+  "walk-north": () => {
     world.player.setNextAction(
-      new Actions.MoveBy(0, -1)
+      new Actions.Walk(0, -1)
     );
   },
-  "move-south": () => {
+  "walk-south": () => {
     world.player.setNextAction(
-      new Actions.MoveBy(0, 1)
+      new Actions.Walk(0, 1)
     );
   },
-  "move-east": () => {
+  "walk-east": () => {
     world.player.setNextAction(
-      new Actions.MoveBy(1, 0)
+      new Actions.Walk(1, 0)
     );
   },
-  "move-west": () => {
+  "walk-west": () => {
     world.player.setNextAction(
-      new Actions.MoveBy(-1, 0)
+      new Actions.Walk(-1, 0)
+    );
+  },
+  "dodge-north": () => {
+    world.player.setNextAction(
+      new Actions.Dodge(0, -2)
+    );
+  },
+  "dodge-south": () => {
+    world.player.setNextAction(
+      new Actions.Dodge(0, 2)
+    );
+  },
+  "dodge-east": () => {
+    world.player.setNextAction(
+      new Actions.Dodge(2, 0)
+    );
+  },
+  "dodge-west": () => {
+    world.player.setNextAction(
+      new Actions.Dodge(-2, 0)
     );
   },
   "teleport": (x, y) => {
