@@ -44,6 +44,7 @@ canvas {
   padding: 10px;
   pointer-events: none;
   background: rgba(0, 0, 0, 0.3);
+  z-index: 100;
 }
 
 .console input {

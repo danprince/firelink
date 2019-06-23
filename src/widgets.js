@@ -304,25 +304,30 @@ let Debug = () => {
 
   return html`
     <${Box} class="debug" direction="column">
-      <div>mode=${modes.join(" | ")}</div>
+      <${DebugDivider} title="Modes"/>
+      <div>${modes.join(" | ")}</div>
       <div class="debug-divider"></div>
-      <${DebugDivider} />
+      <${DebugDivider} title="Game"/>
       <div>x=${cursor && cursor.x} y=${cursor && cursor.y}</div>
       <div>entity=${entity && entity.id}</div>
       <div>turns=${turns}</div>
-      <div>draws=${rendererStats && rendererStats.calls}</div>
-      <${DebugDivider} />
-      <div>entities=${worldStats && worldStats.entities}</div>
-      <div>actions=${worldStats && worldStats.actions}</div>
+      <${DebugDivider} title="Stats" />
+      <div>cells_drawn=${rendererStats && rendererStats.calls}</div>
+      <div>entity_count=${worldStats && worldStats.entities}</div>
+      <div>action_count=${worldStats && worldStats.actions}</div>
     </${Box}>
   `;
 };
 
-let DebugDivider = ({ length=15 }) => html`
-  <div style=${{ color: getColor(9) }}>
-   ${"-".repeat(length)}
-  </div>
-`;
+let DebugDivider = ({ length=15, title }) => {
+  let padding = Math.floor((length - title.length) / 2);
+
+  return html`
+    <${Text}>
+     ${`[9]${"-".repeat(padding)}[10]${title}[9]${"-".repeat(padding)}`}
+    </${Text}>
+  `;
+};
 
 let Popup = ({ x, y, width, height, children, onRequestClose }) => {
   let { ui } = useContext(Context);
