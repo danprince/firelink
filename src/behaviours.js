@@ -21,6 +21,10 @@ export class Wandering extends Behaviour {
     );
 
     return Random.pick(
+      moveBy(0, 0),
+      moveBy(0, 0),
+      moveBy(0, 0),
+      moveBy(0, 0),
       moveBy(0, 1),
       moveBy(0, -1),
       moveBy(1, 0),

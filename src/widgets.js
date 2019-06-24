@@ -8,7 +8,6 @@ import settings from "./settings.js";
 let {
   html,
   useState,
-  useReducer,
   useCallback,
   useContext,
   useEffect,
@@ -135,7 +134,7 @@ let Glyphs = {
       this.renderer.scale = scale;
       this.renderer.init();
       this.renderer.console.put(glyph, color, 0, 0, 0);
-      this.renderer.draw();
+      this.renderer.flush();
       this.cache[key] = this.renderer.canvas.toDataURL();
     }
 
@@ -208,8 +207,6 @@ let Box = ({
 };
 
 let Console = () => {
-  console.log("console");
-
   let { dispatch } = useUI();
   let input = useRef();
   let [value, setValue] = useState("");
@@ -292,7 +289,6 @@ let Palette = () => {
 }
 
 let Debug = () => {
-  console.log("debug");
   let ui = useUI();
   let [modes, setModes] = useState([...ui.input.getActiveModes()]);
   let [cursor, setCursor] = useState(null);
@@ -361,7 +357,6 @@ let Popup = ({ x, y, width, height, children, onRequestClose }) => {
 };
 
 let PopupManager = () => {
-  console.log("popupmanager");
   let [popups, setPopups] = useState([]);
 
   useEventListener("popup", popup => {
@@ -386,7 +381,6 @@ let PopupManager = () => {
 };
 
 let Editor = () => {
-  console.log("editor");
   let [visible, setVisibility] = useState(false);
 
   useEventListener("editor-open", () => setVisibility(true));
@@ -400,7 +394,6 @@ let Editor = () => {
 };
 
 let LogPreview = () => {
-  console.log("log-preview");
   let [message, setMessage] = useState("");
 
   useEventListener("set-message", setMessage);
@@ -413,7 +406,6 @@ let LogPreview = () => {
 };
 
 let Viewport = ({ children }) => {
-  console.log("viewport");
   let ui = useUI();
   let container = useRef();
 
@@ -471,19 +463,18 @@ let Bar = ({ length, value, color }) => html`
 
 let Status = () => {
   let refresh = useRefresh();
+  let ui = useUI();
 
   useWorldEventListener("turn", refresh);
 
-  let ui = useUI();
   let { player } = ui.world;
-
   let stats = player.get(Stats);
   let souls = player.get(Souls);
 
   return html`
     <${Box} class=status justify=space-between>
       <${Bar} length=${stats.maxHitpoints} value=${stats.hitpoints} color=${2} />
-      <${Box} height={1}>${souls.value}</${Box}>
+      <${Box} height=${1}>${souls.value}</${Box}>
       <${Bar} length=${stats.maxStamina} value=${stats.stamina} color=${3} />
     </${Box}>
   `;
@@ -514,9 +505,7 @@ let App = ({ ui }) => {
  */
 export async function mount(selector, ui) {
   if (Glyphs.renderer.ready == false) {
-    await new Promise(resolve => {
-      Glyphs.renderer.events.on("ready", resolve);
-    });
+    await Glyphs.renderer.events.once("ready");
   }
 
   Preact.render(

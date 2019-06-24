@@ -1,5 +1,5 @@
 export default {
-  "debug": false,
+  "debug": true,
   "map.width": 10,
   "map.height": 10,
   "renderer.width": 20,
@@ -8,7 +8,6 @@ export default {
   "font.url": "assets/10x10.png",
   "font.glyphWidth": 10,
   "font.glyphHeight": 10,
-  "ui.enabled": false,
   "colors": [
     "#222321", // 0 black
     "#eaeaea", // 1 white

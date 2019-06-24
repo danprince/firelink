@@ -98,6 +98,30 @@ export class Emitter {
       removeFromList(this.handlers[type], handler);
     }
   }
+
+  /**
+   * @param {string | Symbol} type
+   * @param {(data?: any) => void} [callback]
+   * @return {void | Promise<any>}
+   */
+  once(type, callback) {
+    let promise;
+
+    if (callback == null) {
+      promise = new Promise(resolve => {
+        callback = resolve;
+      });
+    }
+
+    let handler = (data) => {
+      callback(data);
+      this.off(type, handler);
+    };
+
+    this.on(type, handler);
+
+    return promise;
+  }
 }
 
 /**

@@ -484,6 +484,26 @@ export class UI {
 
   update = () => {
     this.world.update();
+    this.updateCameraPosition();
+  }
+
+  updateCameraPosition() {
+    let { camera } = this.world;
+    let { console } = this.renderer;
+
+    let target = this.world.getEntityById(camera.target);
+
+    if (target) {
+      let minCameraX = 0;
+      let minCameraY = 0;
+      let maxCameraX = this.world.map.width - console.width;
+      let maxCameraY = this.world.map.height - console.height;
+      let cameraX = target.x - Math.floor(console.width / 2);
+      let cameraY = target.y - Math.floor(console.height / 2);
+
+      camera.x = clamp(minCameraX, cameraX, maxCameraX);
+      camera.y = clamp(minCameraY, cameraY, maxCameraY);
+    }
   }
 
   /**
@@ -583,20 +603,6 @@ export class UI {
     let { world, renderer } = this;
     let { camera } = world;
     let { console } = renderer;
-
-    let target = world.getEntityById(camera.target);
-
-    if (target) {
-      let minCameraX = 0;
-      let minCameraY = 0;
-      let maxCameraX = world.map.width - console.width;
-      let maxCameraY = world.map.height - console.height;
-      let cameraX = target.x - Math.floor(console.width / 2);
-      let cameraY = target.y - Math.floor(console.height / 2);
-
-      camera.x = clamp(minCameraX, cameraX, maxCameraX);
-      camera.y = clamp(minCameraY, cameraY, maxCameraY);
-    }
 
     for (let x = 0; x < console.width; x++) {
       for (let y = 0; y < console.height; y++) {
