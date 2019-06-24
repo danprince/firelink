@@ -1,6 +1,6 @@
 import settings from "./settings.js";
-import { World } from "./rogue.js";
-import { Emitter } from "./utils.js";
+import { World, TileMap } from "./rogue.js";
+import { Emitter, clamp } from "./utils.js";
 
 export class Font {
   /**
@@ -101,8 +101,32 @@ export class Renderer {
     };
   }
 
+  /**
+   * @type {HTMLElement}
+   */
+  get element() {
+    return null;
+  }
+
   init() {}
   draw() {}
+  flush() {}
+  tick() {}
+
+  start() {
+    this.loop();
+  }
+
+  stop() {
+    cancelAnimationFrame(this.animationFrame);
+  }
+
+  loop = () => {
+    this.draw();
+    this.flush();
+    this.tick();
+    this.animationFrame = requestAnimationFrame(this.loop);
+  }
 }
 
 export class CanvasRenderer extends Renderer {
@@ -119,6 +143,10 @@ export class CanvasRenderer extends Renderer {
 
     /** @type {HTMLCanvasElement[]} */
     this.fontColorCache = [];
+  }
+
+  get element() {
+    return this.canvas;
   }
 
   handleFontLoad = () => {
@@ -144,7 +172,7 @@ export class CanvasRenderer extends Renderer {
     this.ctx.imageSmoothingEnabled = false;
   }
 
-  draw() {
+  flush() {
     const DEBUG = settings["debug"];
 
     let calls = 0;
@@ -371,12 +399,12 @@ export class Input {
    * @param {MouseEvent} event
    */
   handleMouseDown = event => {
-    this.press(`mouse-${event.button}`);
 
     switch (event.button) {
       case 0: return this.press("left-click");
       case 1: return this.press("middle-click");
       case 2: return this.press("right-click");
+      default: return this.press(`mouse-${event.button}`);
     }
   }
 
@@ -384,12 +412,11 @@ export class Input {
    * @param {MouseEvent} event
    */
   handleMouseUp = event => {
-    this.release(`mouse-${event.button}`);
-
     switch (event.button) {
       case 0: return this.release("left-click");
       case 1: return this.release("middle-click");
       case 2: return this.release("right-click");
+      default: return this.release(`mouse-${event.button}`);
     }
   }
 
@@ -446,11 +473,17 @@ export class UI {
       }
     });
 
-    this.world.events.on("message", text => this.message(text));
+    this.world.events.on("message", this.message);
 
     let colors = settings["colors"];
     document.body.style.background = colors[0];
     document.body.style.color = colors[1];
+
+    this.world.start();
+  }
+
+  update = () => {
+    this.world.update();
   }
 
   /**
@@ -510,22 +543,91 @@ export class UI {
     this.events.emit("update-mode", modes);
   }
 
-
-  refresh() {
+  refresh = () => {
     this.events.emit("refresh");
   }
 
   /**
    * @param {string} text
    */
-  message(text) {
+  message = (text) => {
     this.events.emit("set-message", text);
   }
 
   /**
    * @param {{ x: number, y: number, body: string }} popup
    */
-  popup(popup) {
+  popup = (popup) => {
     this.events.emit("popup", popup);
+  }
+
+  /**
+   * @param {string} name
+   * @param {any[]} args
+   */
+  dispatch = (name, ...args) => {
+    this.events.emit("dispatch", { name, args });
+  }
+
+  startRenderer() {
+    this.renderer.draw = this.draw;
+    this.renderer.tick = this.update;
+    this.renderer.start();
+  }
+
+  stopRenderer() {
+    this.renderer.stop();
+  }
+
+  draw = () => {
+    let { world, renderer } = this;
+    let { camera } = world;
+    let { console } = renderer;
+
+    let target = world.getEntityById(camera.target);
+
+    if (target) {
+      let minCameraX = 0;
+      let minCameraY = 0;
+      let maxCameraX = world.map.width - console.width;
+      let maxCameraY = world.map.height - console.height;
+      let cameraX = target.x - Math.floor(console.width / 2);
+      let cameraY = target.y - Math.floor(console.height / 2);
+
+      camera.x = clamp(minCameraX, cameraX, maxCameraX);
+      camera.y = clamp(minCameraY, cameraY, maxCameraY);
+    }
+
+    for (let x = 0; x < console.width; x++) {
+      for (let y = 0; y < console.height; y++) {
+        let tile = world.map.get(camera.x + x, camera.y + y);
+
+        if (tile == null) {
+          continue;
+        }
+
+        let type = TileMap.registry[tile.type];
+        let glyph = tile.glyph || type.glyph;
+        let color = tile.color || type.color;
+
+        if (tile) {
+          console.put(glyph, color, x, y, 0);
+        } else {
+          console.put(0, 0, x, y, 0);
+        }
+      }
+    }
+
+    for (let [_, entity] of world.entities) {
+      let x = entity.x - camera.x;
+      let y = entity.y - camera.y;
+      let z = entity.z;
+
+      if (x < 0 || y < 0 || x >= console.width || y >= console.height) {
+        continue;
+      }
+
+      console.put(entity.glyph, entity.color, x, y, z);
+    }
   }
 }

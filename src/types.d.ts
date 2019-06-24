@@ -12,7 +12,7 @@ declare namespace Rogue {
     new(...args: any[]): T
   }
 
-  export type ComponentClass<T extends Component> = {
+  export type ComponentClass<T extends Component=any> = {
     new(...args: any[]): T
   }
 
@@ -25,18 +25,13 @@ declare namespace Rogue {
     light?: number,
   }
 
-  export type ActionResult = {
-    ok: boolean,
-    message?: string,
-    alt?: Action,
-  };
-
   export type EntityType = {
     id: string,
-    extends?: string[],
+    extends?: string | string[],
     attributes?: {
       color?: number,
       glyph?: number,
+      z?: number,
     },
     components?: {
       [componentName: string]: any,

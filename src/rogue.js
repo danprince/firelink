@@ -44,7 +44,15 @@ export let Inheritance = {
       ancestors.unshift(type);
 
       if (type.extends) {
-        for (let id of type.extends) {
+        let parents = [];
+
+        if (typeof type.extends === "string") {
+          parents = [type.extends];
+        } else {
+          parents = type.extends;
+        }
+
+        for (let id of parents) {
           if (!visited.has(id)) {
             stack.push(id);
           }
@@ -131,9 +139,8 @@ export class Component {
     return this.constructor.name;
   }
 
-  get target() {
-    return Entity;
-  }
+  /** @type {Rogue.ComponentClass | Rogue.ComponentClass[]} */
+  requires = [];
 
   /**
    * @type {T}
@@ -142,16 +149,22 @@ export class Component {
 
   /**
    * Checks whether the component can be added to a specific entity.
-   *
-   * @param {Entity} entity
-   * @return {string | true}
+   * @return {string | void}
    */
   validate(entity) {
-    if (this.target && !(entity instanceof this.target)) {
-      return `"${this.name}" component can only be added to ${this.target.name}`;
+    let requiredComponentClasses = [];
+
+    if (this.requires instanceof Array) {
+      requiredComponentClasses = this.requires;
+    } else if (this.requires != null) {
+      requiredComponentClasses = [this.requires];
     }
 
-    return true;
+    for (let componentClass of requiredComponentClasses) {
+      if (!entity.has(componentClass)) {
+        return `Can't add ${this.name} to an entity without ${componentClass.name}`;
+      }
+    }
   }
 
   onEnter() {}
@@ -161,6 +174,13 @@ export class Component {
    * @param {Rogue.Event} [event]
    */
   onEvent(event) {}
+}
+
+export class System {
+  /**
+   * @param {World} world
+   */
+  *update(world) {}
 }
 
 export class Entity {
@@ -182,6 +202,10 @@ export class Entity {
    * @param {string} type
    */
   constructor(type) {
+    if (Entity.registry[type] == null) {
+      throw new Error(`Type does not exist: "${type}"`);
+    }
+
     let inherited = Inheritance.getInheritedProps(type);
 
     this.id = Utils.uid();
@@ -190,9 +214,9 @@ export class Entity {
     this.active = false;
     this.x = 0;
     this.y = 0;
-    this.z = 0;
-    this.glyph = inherited.attributes.glyph;
-    this.color = inherited.attributes.color;
+    this.z = inherited.attributes.z || 0;
+    this.glyph = inherited.attributes.glyph || 0;
+    this.color = inherited.attributes.color || 0;
 
     /** @type {World} */
     this.world = null;
@@ -231,8 +255,8 @@ export class Entity {
   add(component) {
     let result = component.validate(this);
 
-    if (result !== true) {
-      return console.error(`Can't add "${component.name}" component to ${this.type.id}!\n\n${result}`)
+    if (result !== undefined) {
+      return console.error(result);
     }
 
     this.components.push(component);
@@ -310,89 +334,99 @@ export class Entity {
   }
 }
 
-export class Item extends Entity {
+/**
+ * A behaviour is responsible for producing actions.
+ */
+export class Behaviour {
   /**
-   * @param {string} type
+   * @type {{ [id: string]: Rogue.Constructor<Behaviour> }}
    */
-  constructor(type) {
-    super(type);
+  static registry = {};
 
-    // Render items above entities
-    this.z = 1;
+  /**
+   * @param {typeof Behaviour.registry} behaviours
+   */
+  static register(behaviours) {
+    Object.assign(this.registry, behaviours);
+  }
+
+  /**
+   * @param {string} id
+   */
+  static create(id) {
+    if (id in Behaviour.registry) {
+      return new Behaviour.registry[id]();
+    } else {
+      console.warn(`Behaviour does not exist "${id}"`);
+      return new Behaviour();
+    }
+  }
+
+  /**
+   * @param {Entity} entity
+   */
+  bind(entity) {
+    this.entity = entity;
+  }
+
+  unbind() {
+    this.entity = null;
+  }
+
+  /**
+   * @return {Action}
+   */
+  getNextAction() {
+    return null;
   }
 }
 
-export class Actor extends Entity {
+export class Actor extends Component {
   /**
-   * @param {string} type
+   * @type {Behaviour}
    */
-  constructor(type) {
-    super(type);
-    // Render actors above items
-    this.z = 2;
+  behaviour = null;
+
+  /**
+   * @type {Action}
+   */
+  previousAction = null;
+
+  /**
+   * @param {{ behaviour: string }} params
+   */
+  constructor({ behaviour }) {
+    super();
+    this.behaviour = Behaviour.create(behaviour);
   }
+
+  onEnter() {
+    this.behaviour.bind(this.entity);
+  }
+
+  onExit() {
+    this.behaviour.unbind();
+  }
+
+  onBeforeTurn() {}
+
+  onAfterTurn() {}
 
   /**
    * @param {Action} action
    */
-  onBeforeAction(action) {
-    this.send({ type: "before-action", action });
-  }
+  onBeforeAction(action) {}
 
   /**
    * @param {Action} action
-   * @param {Rogue.ActionResult} result
+   * @param {Action.Result} result
    */
   onAfterAction(action, result) {
-    this.send({ type: "after-action", action, result });
+    this.previousAction = action;
   }
 
-  /**
-   * @return {Action | Promise<Action>}
-   */
   takeTurn() {
-    // Default action is a no-op
-    let defaultAction = new Action();
-
-    // Request an action from any of our components
-    let event = { type: "request-action", action: null };
-
-    this.send(event);
-
-    if (event.action) {
-      return event.action;
-    } else {
-      return defaultAction;
-    }
-  }
-}
-
-class Player extends Actor {
-  /**
-   * @param {Action} action
-   */
-  setNextAction = (action) => {};
-
-  /**
-   * @param {Rogue.ActionResult} result
-   */
-  onAfterAction(_, result) {
-    if (result.message) {
-      this.world.message(result.message);
-    }
-  }
-
-  /**
-   * The player takes turns in a different way to most actors. After
-   * a turn is requested, we block whilst we wait for an input. The
-   * UI is responsible for passing an input to us asynchronously.
-   *
-   * @return {Promise<Action>}
-   */
-  async takeTurn() {
-    return new Promise(resolve => {
-      this.setNextAction = resolve;
-    });
+    return this.behaviour.getNextAction();
   }
 }
 
@@ -497,11 +531,23 @@ export class World {
    */
   entities = new Map();
 
-  player = new Player("Player");
+  player = new Entity("Player");
   cursor = { x: 0, y: 0 };
   camera = { x: 0, y: 0 };
   ticks = 0;
   turns = 0;
+
+  turnSystem = new System();
+
+  /**
+   * @type {System[]}
+   */
+  systems = [];
+
+  /**
+   * @type {ReturnType<World["loop"]>}
+   */
+  iterator = null;
 
   /**
    * @param {Entity} entity
@@ -569,69 +615,38 @@ export class World {
     }
   }
 
-  async start() {
-    const MAX_ACTION_TRIES = settings["rules.maxActionTries"];
-    const DEBUG = settings["debug"];
+  start() {
+    this.iterator = this.loop();
+  }
+
+  update() {
+    this.iterator.next();
+  }
+
+  *loop() {
+    // Yield immediately, so that the turns don't start until something
+    // calls world.update() for the first time.
+    yield false;
 
     while (true) {
-      let stats = { entities: 0, actions: 0 };
+      systems: for (let system of this.systems) {
+        let iterator = system.update(this);
 
-      for (let [, entity] of this.entities) {
-        if (DEBUG) {
-          stats.entities += 1;
-        }
+        while (true) {
+          let result = iterator.next();
 
-        entity.onBeforeTurn();
-
-        if (entity instanceof Actor) {
-          while (true) {
-            let actor = entity;
-            let action = await actor.takeTurn();
-            let tries = 0;
-
-            /** @type {Rogue.ActionResult} */
-            let result = null;
-
-            while (tries++ < MAX_ACTION_TRIES) {
-              actor.onBeforeAction(action);
-              result = action.perform(actor);
-              actor.onAfterAction(action, result);
-
-              if (DEBUG) {
-                stats.actions += 1;
-              }
-
-              if (result.ok || result.alt == null) {
-                break;
-              }
-
-              action = result.alt;
-            }
-
-            if (tries >= MAX_ACTION_TRIES) {
-              console.warn("entity took too many tries", entity);
-            }
-
-            // Allow the player to try a retry if their action failed
-            if (!result.ok && entity instanceof Player) {
-              continue;
-            }
-
-            // Prevent non-player characters getting stuck if they
-            // are unable to produce an action
-            break;
+          if (result.done) {
+            break systems;
           }
-        }
 
-        entity.onAfterTurn();
+          yield false;
+        }
       }
 
       this.turns += 1;
       this.events.emit("turn", this.turns);
 
-      if (DEBUG) {
-        this.events.emit("stats", stats);
-      }
+      yield true;
     }
   }
 
@@ -644,36 +659,70 @@ export class World {
 }
 
 export class Action {
-  /**
-   * @param {string} [message]
-   * @return {Rogue.ActionResult}
-   */
-  static succeed(message) {
-    return { ok: true, message };
+  static get Result() {
+    return ActionResult;
   }
 
   /**
-   * @param {string} [message]
-   * @return {Rogue.ActionResult}
+   * @type {Rogue.ComponentClass | Rogue.ComponentClass[]}
    */
-  static fail(message) {
-    return { ok: false, message };
-  }
+  requires;
 
   /**
-   * @param {Action} action
-   * @return {Rogue.ActionResult}
+   * @param {Entity} entity
+   * @return {string | void}
    */
-  static alternate(action) {
-    return { ok: false, alt: action };
+  validate(entity) {
+    let requiredComponentClasses = Utils.asList(this.requires);
+
+    for (let componentClass of requiredComponentClasses) {
+      if (!entity.has(componentClass)) {
+        console.warn(`must have "${componentClass.name}" component to perform "${this.constructor.name}"`);
+      }
+    }
   }
 
   /**
    * @param {Entity} entity
-   * @return {Rogue.ActionResult}
+   * @return {ActionResult}
    */
   perform(entity) {
-    return Action.fail();
+    return ActionResult.fail();
+  }
+}
+
+export class ActionResult {
+  /**
+   * @param {string} [message]
+   * @return {ActionResult}
+   */
+  static succeed(message) {
+    return new ActionResult({ ok: true, message });
+  }
+
+  /**
+   * @param {string} [message]
+   * @return {ActionResult}
+   */
+  static fail(message) {
+    return new ActionResult({ ok: false, message });
+  }
+
+  /**
+   * @param {Action} action
+   * @return {ActionResult}
+   */
+  static alternate(action) {
+    return new ActionResult({ ok: false, alt: action });
+  }
+
+  /**
+   * @param {{ ok: boolean, message?: string, alt?: Action }} params
+   */
+  constructor({ ok, message, alt }) {
+    this.ok = ok;
+    this.message = message;
+    this.alt = alt;
   }
 }
 

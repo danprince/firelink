@@ -1,17 +1,20 @@
 import { TileMap, Entity, Action, Directions } from "./rogue.js";
-import { Stamina } from "./components.js";
+import { Stats, Souls, Disposition, Equipment } from "./components.js";
 
-let { succeed, fail, alternate } = Action;
+let { succeed, fail, alternate } = Action.Result;
 
 export class Rest extends Action {
+  requires = Stats;
+
   /**
    * @param {Entity} entity
    */
   perform(entity) {
-    let stamina = entity.get(Stamina);
+    let stats = entity.get(Stats);
 
-    if (stamina.value < stamina.max) {
-      stamina.value += 1;
+    if (stats.stamina < stats.maxStamina) {
+      stats.changeStamina(1);
+      return succeed("You regain some stamina by resting");
     }
 
     return succeed();
@@ -88,15 +91,99 @@ export class Walk extends Action {
     let steps = Directions.steps(this.dir, 1);
     let x = entity.x + steps.x;
     let y = entity.y + steps.y;
-    let stamina = entity.get(Stamina);
+    let entities = entity.world.getEntitiesAt(x, y);
 
-    if (stamina && stamina.value === 0) {
-      return fail("You don't have enough stamina to walk");
+    // If there is a hostile entity here, then automatically attack
+
+    let target = entities.find(entity => {
+      let disposition = entity.get(Disposition);
+      return disposition && disposition.isHostileTo(entity.id);
+    });
+
+    if (target) {
+      return alternate(
+        new Attack(target)
+      );
     }
+
+    // TODO: If there is a destructible entity here, destroy it
+    // TODO: If there is an activatable entity here, activate it
 
     return alternate(
       new MoveTo(x, y)
     );
+  }
+}
+
+export class Attack extends Action {
+  requires = [Equipment];
+
+  /**
+   * @param {Entity} target
+   */
+  constructor(target) {
+    super();
+    this.target = target;
+  }
+
+  /**
+   * @param {Entity} attacker
+   */
+  perform(attacker) {
+    let target = this.target;
+
+    let equipment = attacker.get(Equipment);
+
+    if (equipment == null) {
+      return fail(`Can't attack without equipment`);
+    }
+
+    let weapon = equipment.getSelectedItem();
+
+    if (weapon == null) {
+      return fail(`Can't attack without a weapon`);
+    }
+
+    // TODO:
+    // - Stamina damage scaling
+    // - Calculate damage from weapon
+    // - Calculate effects from weapon
+    // - Calculate resistances from target
+    // - Deal stamina damage
+    // - Stance prevention (block/parry)
+
+    let attackerStats = attacker.get(Stats);
+    let targetStats = target.get(Stats);
+    let damage = 1;
+
+    attacker.send({ type: "before-attack", target });
+    target.send({ type: "before-attacked", attacker });
+
+    attackerStats.changeStamina(-1);
+    targetStats.changeHitpoints(-damage);
+
+    attacker.send({ type: "after-attack", target });
+    target.send({ type: "after-attacked", attacker });
+
+    let isTargetDead = targetStats.hitpoints === 0;
+
+    if (isTargetDead === false) {
+      return succeed(`You hit the ${this.target.type.id} for ${damage} damage`);
+    }
+
+    attacker.send({ type: "killed", target });
+
+    // Transfer souls
+    let attackerSouls = attacker.get(Souls);
+    let targetSouls = target.get(Souls);
+
+    if (targetSouls && attackerSouls) {
+      let value = targetSouls.value;
+      targetSouls.set(0);
+      attackerSouls.add(value);
+    }
+
+    return succeed(`You killed the ${this.target.type.id}`);
   }
 }
 
@@ -116,15 +203,6 @@ export class Dodge extends Action {
     let steps = Directions.steps(this.dir, 2);
     let x = entity.x + steps.x;
     let y = entity.y + steps.y;
-    let stamina = entity.get(Stamina);
-
-    if (stamina.value < 1) {
-      return alternate(
-        new Walk(this.dir)
-      );
-    }
-
-    stamina.value -= 1;
 
     // TODO: Prevent entities from being able to dodge through solid
     // objects such as walls or other entities.

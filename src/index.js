@@ -1,11 +1,13 @@
 import {
-  Actor,
   World,
   Random,
   Component,
   Entity,
+  Behaviour,
   TileMap,
   Directions,
+  Actor,
+  Action,
 } from "./rogue.js";
 
 import { UI, Font, CanvasRenderer } from "./ui.js";
@@ -14,10 +16,13 @@ import data from "./data.js";
 import settings from "./settings.js";
 import * as Actions from "./actions.js";
 import * as Components from "./components.js";
+import * as Systems from "./systems.js";
+import * as Behaviours from "./behaviours.js";
 
 TileMap.register(data.tiles);
 Entity.register(data.entities);
 Component.register(Components);
+Behaviour.register(Behaviours);
 
 let font = new Font({
   url: settings["font.url"],
@@ -37,9 +42,17 @@ let world = new World();
 
 let ui = new UI(world, renderer);
 
-for (let binding of data.bindings) {
-  ui.input.bind(binding.mode, binding.on, binding.trigger);
-}
+/**
+ * Give the player an async behaviour, so that we can provide actions
+ * when they are available in the UI.
+ */
+let playerBehaviour = new Behaviours.Async();
+
+/**
+ * Provide the player's next action
+ * @param {Action} action
+ */
+let setPlayerAction = action => playerBehaviour.setNextAction(action);
 
 ui.commands = {
   "editor-open": () => {
@@ -81,54 +94,54 @@ ui.commands = {
     world.camera.target = Number(id);
   },
   "rest": () => {
-    world.player.setNextAction(
+    setPlayerAction(
       new Actions.Rest()
     );
   },
   "walk-north": () => {
-    world.player.setNextAction(
+    setPlayerAction(
       new Actions.Walk(Directions.North)
     );
   },
   "walk-south": () => {
-    world.player.setNextAction(
+    setPlayerAction(
       new Actions.Walk(Directions.South)
     );
   },
   "walk-east": () => {
-    world.player.setNextAction(
+    setPlayerAction(
       new Actions.Walk(Directions.East)
     );
   },
   "walk-west": () => {
-    world.player.setNextAction(
+    setPlayerAction(
       new Actions.Walk(Directions.West)
     );
   },
   "dodge-north": () => {
-    world.player.setNextAction(
+    setPlayerAction(
       new Actions.Dodge(Directions.North)
     );
   },
   "dodge-south": () => {
-    world.player.setNextAction(
+    setPlayerAction(
       new Actions.Dodge(Directions.South)
     );
   },
   "dodge-east": () => {
-    world.player.setNextAction(
+    setPlayerAction(
       new Actions.Dodge(Directions.East)
     );
   },
   "dodge-west": () => {
-    world.player.setNextAction(
+    setPlayerAction(
       new Actions.Dodge(Directions.West)
     );
   },
   "teleport": (x, y) => {
     x = Number(x);
     y = Number(y);
-    world.player.setNextAction(
+    setPlayerAction(
       new Actions.MoveTo(x, y)
     );
   },
@@ -139,7 +152,16 @@ ui.commands = {
       height: 1,
       body: text,
     });
-  }
+  },
+  "select-consumable": () => {
+    world.player.get(Components.Equipment);
+  },
+  "select-left-hand": () => {
+
+  },
+  "select-right-hand": () => {
+
+  },
 };
 
 // Command Aliases
@@ -168,11 +190,9 @@ function setupSandboxArea() {
 
   world.player.x = 3;
   world.player.y = 3;
-  world.player.z = 3;
 
-  for (let i = 0; i < 20; i++) {
-    let entity = new Actor("Human");
-    entity.add(new Components.Wandering);
+  for (let i = 0; i < 2; i++) {
+    let entity = new Entity("TorchHollow");
     entity.x = 1 + Random.int(world.map.width - 2);
     entity.y = 1 + Random.int(world.map.height - 2);
     world.spawn(entity);
@@ -183,10 +203,20 @@ function init() {
   // Reset entities
   world.entities = new Map();
 
+  // Reset systems
+  world.systems = [
+    new Systems.TurnSystem(),
+  ];
+
+  // Reset input bindings
+  ui.input.bindings = data.bindings;
+
   setupSandboxArea();
 
   world.map.autotile();
+
   world.camera.target = world.player.id;
+
   world.spawn(world.player);
 
   ui.push("default");
@@ -195,7 +225,18 @@ function init() {
 function start() {
   init();
 
-  world.start();
+  let playerActor = world.player.get(Actor);
+
+  playerActor.behaviour = playerBehaviour;
+
+  playerActor.onAfterAction = (action, result) => {
+    if (result && result.message) {
+      world.message(result.message);
+    } else {
+      world.message("");
+    }
+  };
+
   ui.start();
 
   mount("#root", ui);
@@ -209,4 +250,6 @@ let globals = {
   ui,
 };
 
-Object.assign(window, globals);
+if (settings["debug"]) {
+  Object.assign(window, globals);
+}

@@ -149,3 +149,16 @@ export function assert(condition, message) {
     throw new Error(message);
   }
 }
+
+/**
+ * @template T
+ * @param {T | T[]} items
+ * @return {T[]}
+ */
+export function asList(items) {
+  if (items instanceof Array) {
+    return items;
+  } else {
+    return [items];
+  }
+}

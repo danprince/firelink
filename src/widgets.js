@@ -1,21 +1,21 @@
 // @ts-ignore (typescript can't find external modules)
 import * as Preact from "https://unpkg.com/@danprince/preact-app";
 import * as Utils from "./utils.js";
-import * as Rogue from "./rogue.js";
-import { Hitpoints, Stamina } from "./components.js";
-import { Font, CanvasRenderer } from "./ui.js";
+import { Stats, Souls } from "./components.js";
+import { UI, Font, CanvasRenderer } from "./ui.js";
 import settings from "./settings.js";
 
 let {
   html,
   useState,
+  useReducer,
   useCallback,
   useContext,
   useEffect,
   useRef,
 } = Preact;
 
-let Context = Preact.createContext(null);
+let UIContext = Preact.createContext(null);
 
 /**
  * @param {string[]} classNames
@@ -39,6 +39,13 @@ let scaleX = x => {
  */
 let scaleY = y => {
   return y * settings["font.glyphHeight"] * settings["renderer.scale"];
+};
+
+/**
+ * @return {UI}
+ */
+let useUI = () => {
+  return useContext(UIContext);
 };
 
 /**
@@ -71,7 +78,7 @@ let useGenericEventListener = (emitter, name, callback) => {
  * @param {(data?: any) => void} callback
  */
 let useWorldEventListener = (name, callback) => {
-  let { ui } = useContext(Context);
+  let ui = useUI();
   useGenericEventListener(ui.world.events, name, callback);
 };
 
@@ -82,7 +89,7 @@ let useWorldEventListener = (name, callback) => {
  * @param {(data?: any) => void} callback
  */
 let useRendererEventListener = (name, callback) => {
-  let { ui } = useContext(Context);
+  let ui = useUI();
   useGenericEventListener(ui.renderer.events, name, callback);
 };
 
@@ -93,7 +100,7 @@ let useRendererEventListener = (name, callback) => {
  * @param {(data?: any) => void} callback
  */
 let useEventListener = (name, callback) => {
-  let { ui } = useContext(Context);
+  let ui = useUI();
   useGenericEventListener(ui.events, name, callback);
 };
 
@@ -201,7 +208,9 @@ let Box = ({
 };
 
 let Console = () => {
-  let { dispatch } = useContext(Context);
+  console.log("console");
+
+  let { dispatch } = useUI();
   let input = useRef();
   let [value, setValue] = useState("");
   let [message, setMessage] = useState("");
@@ -283,7 +292,8 @@ let Palette = () => {
 }
 
 let Debug = () => {
-  let { ui } = useContext(Context);
+  console.log("debug");
+  let ui = useUI();
   let [modes, setModes] = useState([...ui.input.getActiveModes()]);
   let [cursor, setCursor] = useState(null);
   let [entity, setEntity] = useState(null);
@@ -330,7 +340,7 @@ let DebugDivider = ({ length=15, title }) => {
 };
 
 let Popup = ({ x, y, width, height, children, onRequestClose }) => {
-  let { ui } = useContext(Context);
+  let ui = useUI();
   let translated = ui.worldToScreen(x, y);
 
   let style = {
@@ -351,6 +361,7 @@ let Popup = ({ x, y, width, height, children, onRequestClose }) => {
 };
 
 let PopupManager = () => {
+  console.log("popupmanager");
   let [popups, setPopups] = useState([]);
 
   useEventListener("popup", popup => {
@@ -375,6 +386,7 @@ let PopupManager = () => {
 };
 
 let Editor = () => {
+  console.log("editor");
   let [visible, setVisibility] = useState(false);
 
   useEventListener("editor-open", () => setVisibility(true));
@@ -388,6 +400,7 @@ let Editor = () => {
 };
 
 let LogPreview = () => {
+  console.log("log-preview");
   let [message, setMessage] = useState("");
 
   useEventListener("set-message", setMessage);
@@ -400,78 +413,18 @@ let LogPreview = () => {
 };
 
 let Viewport = ({ children }) => {
+  console.log("viewport");
+  let ui = useUI();
   let container = useRef();
-  let animationFrame = useRef();
-  let { ui } = useContext(Context);
 
-  let draw = () => {
-    let { renderer, world } = ui;
-    let { camera } = world;
-    let { console } = renderer;
+  useEffect(() => {
+    ui.startRenderer();
+    container.current.appendChild(ui.renderer.element);
 
-    let target = world.getEntityById(camera.target);
-
-    if (target) {
-      let minCameraX = 0;
-      let minCameraY = 0;
-      let maxCameraX = world.map.width - renderer.console.width;
-      let maxCameraY = world.map.height - renderer.console.height;
-      let cameraX = target.x - Math.floor(renderer.console.width / 2);
-      let cameraY = target.y - Math.floor(renderer.console.height / 2);
-
-      camera.x = Utils.clamp(minCameraX, cameraX, maxCameraX);
-      camera.y = Utils.clamp(minCameraY, cameraY, maxCameraY);
-    }
-
-    for (let x = 0; x < console.width; x++) {
-      for (let y = 0; y < console.height; y++) {
-        let tile = world.map.get(camera.x + x, camera.y + y);
-
-        if (tile == null) {
-          continue;
-        }
-
-        let type = Rogue.TileMap.registry[tile.type];
-        let glyph = tile.glyph || type.glyph;
-        let color = tile.color || type.color;
-
-        if (tile) {
-          console.put(glyph, color, x, y, 0);
-        } else {
-          console.put(0, 0, x, y, 0);
-        }
-      }
-    }
-
-    for (let [_, entity] of world.entities) {
-      let x = entity.x - camera.x;
-      let y = entity.y - camera.y;
-      let z = entity.z;
-
-      if (x < 0 || y < 0 || x >= console.width || y >= console.height) {
-        continue;
-      }
-
-      console.put(entity.glyph, entity.color, x, y, z);
-    }
-
-    renderer.draw();
-  };
-
-  let start = () => {
-    container.current.appendChild(ui.renderer.canvas);
-    loop();
-  };
-
-  let stop = () => {
-    container.current.removeChild(ui.renderer.canvas);
-    cancelAnimationFrame(animationFrame.current);
-  };
-
-  let loop = () => {
-    animationFrame.current = requestAnimationFrame(loop);
-    draw();
-  };
+    return () => {
+      ui.stopRenderer();
+    };
+  }, []);
 
   let handleCursorMove = useCallback(event => {
     let { top, left } = container.current.getBoundingClientRect();
@@ -490,19 +443,6 @@ let Viewport = ({ children }) => {
     ui.world.cursor = null;
   });
 
-  useEffect(() => {
-    if (ui.ready) {
-      start();
-    } else {
-      ui.events.on("ready", start);
-    }
-
-    return () => {
-      stop();
-      ui.events.off("ready", start);
-    };
-  }, []);
-
   return html`
     <div
       class="viewport"
@@ -512,7 +452,7 @@ let Viewport = ({ children }) => {
       children=${children}
     />
   `;
-};
+}
 
 let Bar = ({ length, value, color }) => html`
   <${Box} class=bar height=${1} width=${length}>
@@ -533,19 +473,18 @@ let Status = () => {
   let refresh = useRefresh();
 
   useWorldEventListener("turn", refresh);
-  useEventListener("refresh", refresh);
 
-  let { ui } = useContext(Context);
+  let ui = useUI();
   let { player } = ui.world;
 
-  let hitpoints = player.get(Hitpoints);
-  let stamina = player.get(Stamina);
+  let stats = player.get(Stats);
+  let souls = player.get(Souls);
 
   return html`
     <${Box} class=status justify=space-between>
-      <${Bar} length=${hitpoints.max} value=${hitpoints.value} color=${2} />
-      <${Box} height={1}>${player.souls}</${Box}>
-      <${Bar} length=${stamina.max} value=${stamina.value} color=${3} />
+      <${Bar} length=${stats.maxHitpoints} value=${stats.hitpoints} color=${2} />
+      <${Box} height={1}>${souls.value}</${Box}>
+      <${Bar} length=${stats.maxStamina} value=${stats.stamina} color=${3} />
     </${Box}>
   `;
 };
@@ -553,29 +492,26 @@ let Status = () => {
 let App = ({ ui }) => {
   const DEBUG = settings["debug"];
 
-  let app = {
-    ui: ui,
-    dispatch(name, ...args) {
-      ui.events.emit("dispatch", { name, args });
-    }
-  };
-
   return html`
-    <${Context.Provider} value=${app}>
+    <${UIContext.Provider} value=${ui}>
       <div class="ui">
         ${DEBUG && html`<${Debug} />`}
         <${Status} />
-        <${Viewport} ...${app}>
+        <${Viewport} ui=${ui}>
           <${PopupManager} />
         <//>
         <${LogPreview} />
         <${Console} />
         <${Editor} />
       </div>
-    </${Context.Provider}>
+    </${UIContext.Provider}>
   `;
 };
 
+/**
+ * @param {string} selector
+ * @param {UI} ui
+ */
 export async function mount(selector, ui) {
   if (Glyphs.renderer.ready == false) {
     await new Promise(resolve => {

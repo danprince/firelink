@@ -42,18 +42,79 @@ export default {
    */
   entities: [
     {
+      id: "Item",
+      attributes: {
+        z: 1,
+      },
+    },
+    {
       id: "Creature",
+      attributes: {
+        z: 2,
+      },
       components: {
-        Hitpoints: 1,
-        Stamina: 1,
+        Actor: { behaviour: "Resting" },
+        Stats: { hitpoints: 1, stamina: 1 },
+      }
+    },
+    {
+      id: "Enemy",
+      extends: "Creature",
+      components: {
+        Actor: { behaviour: "Guarding" },
+        Disposition: "hostile-to-player"
       }
     },
     {
       id: "Human",
-      extends: ["Creature"],
+      extends: "Creature",
       attributes: {
         glyph: 80,
         color: 23,
+      },
+    },
+    {
+      id: "Hollow",
+      extends: "Enemy",
+      attributes: {
+        glyph: 81,
+        color: 22,
+      },
+      components: {
+        Actor: { behaviour: "Wandering" },
+        Stats: { hitpoints: 3, stamina: 3 },
+      },
+    },
+    {
+      id: "TorchHollow",
+      extends: "Hollow",
+      attributes: {
+        glyph: 82,
+        color: 26,
+      },
+      components: {
+        Stats: { hitpoints: 3, stamina: 3 },
+        Souls: 20,
+      },
+    },
+    {
+      id: "SpearHollow",
+      extends: "Hollow",
+      attributes: {
+        glyph: 83,
+      },
+      components: {
+        Souls: 20,
+      },
+    },
+    {
+      id: "SwordHollow",
+      extends: "Hollow",
+      attributes: {
+        glyph: 84,
+      },
+      components: {
+        Souls: 20,
       },
     },
     {
@@ -61,11 +122,31 @@ export default {
       extends: ["Human"],
       attributes: {
         color: 1,
+        z: 3,
       },
       components: {
-        Hitpoints: 6,
-        Stamina: 6,
+        Stats: { hitpoints: 6, stamina: 6 },
+        Souls: 40,
+        Inventory: {},
+        Equipment: {
+          leftHand: "BlackKnightGreatSword",
+        },
       },
     },
+    {
+      id: "BlackKnightGreatSword",
+      extends: "Item",
+      attributes: {
+        glyph: 94,
+        color: 9,
+      },
+      components: {
+        Item: { weight: 10 },
+        Equipable: "wield",
+        Modifiers: {
+          Bleed: { amount: 1 },
+        },
+      }
+    }
   ],
 }
