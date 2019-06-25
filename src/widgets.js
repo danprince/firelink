@@ -1,7 +1,8 @@
 // @ts-ignore (typescript can't find external modules)
 import * as Preact from "https://unpkg.com/@danprince/preact-app";
 import * as Utils from "./utils.js";
-import { Stats, Souls } from "./components.js";
+import * as Components from "./components.js";
+import { Stats, Souls, Equipment } from "./components.js";
 import { UI, Font, CanvasRenderer } from "./ui.js";
 import settings from "./settings.js";
 
@@ -25,6 +26,11 @@ let classes = (...classNames) => classNames.filter(x => x).join(" ");
  * @param {number} index
  */
 let getColor = index => settings["colors"][index];
+
+/**
+ * @param {string} name
+ */
+let getColorSetting = name => getColor(settings[`ui.colors.${name}`]);
 
 /**
  * @param {number} x
@@ -142,7 +148,7 @@ let Glyphs = {
   },
 }
 
-let Glyph = ({ id, color, scale=settings["renderer.scale"] }) => {
+let Glyph = ({ id, color, scale=settings["renderer.scale"], ...rest }) => {
   let src = Glyphs.toBase64(id, color, scale);
 
   let style = {
@@ -150,7 +156,7 @@ let Glyph = ({ id, color, scale=settings["renderer.scale"] }) => {
     height: Glyphs.renderer.font.glyphHeight * scale,
   };
 
-  return html`<img src=${src} style=${style} />`;
+  return html`<img class=glyph src=${src} style=${style} ...${rest} />`;
 };
 
 let Text = ({ children }) => {
@@ -185,6 +191,8 @@ let Box = ({
   justify,
   align,
   wrap,
+  grow,
+  shrink,
   ...rest
 }) => {
   let style = { ...rest.style };
@@ -200,6 +208,8 @@ let Box = ({
   if (justify) style.justifyContent = justify;
   if (direction) style.flexDirection = direction;
   if (wrap) style.flexWrap = wrap;
+  if (grow) style.flexGrow = grow;
+  if (shrink) style.flexShrink = shrink;
 
   let className = classes(rest.class, `box`);
 
@@ -273,7 +283,7 @@ let Palette = () => {
   let colors = settings["colors"];
 
   return html`
-    <${Box} class="palette" width=${8} wrap="wrap">
+    <${Box} class=palette width=${8} wrap=wrap shrink=0>
       ${Object.keys(colors).map(index => html`
         <${Box}
           class="swatch"
@@ -288,7 +298,26 @@ let Palette = () => {
   `;
 }
 
-let Debug = () => {
+let GlyphLibrary = ({ onSelect }) => {
+  return html`
+    <${Box} class=glyphs grow=1 wrap=wrap height=${7} width=${8}>
+      ${Utils.range(256).map(index => html`
+        <${Glyph}
+          id=${index}
+          color=${1}
+          onMouseEnter=${() => onSelect(index)}
+        />
+      `)}
+    </${Box}>
+  `;
+}
+
+let Inspector = () => {
+  let [visible, setVisibility] = useState(false);
+
+  useEventListener("inspector-open", () => setVisibility(true));
+  useEventListener("inspector-close", () => setVisibility(false));
+
   let ui = useUI();
   let [modes, setModes] = useState([...ui.input.getActiveModes()]);
   let [cursor, setCursor] = useState(null);
@@ -308,30 +337,37 @@ let Debug = () => {
   useWorldEventListener("turn", setTurns);
   useWorldEventListener("stats", setWorldStats);
 
-  return html`
-    <${Box} class="debug" direction="column">
-      <${DebugDivider} title="Modes"/>
-      <div>${modes.join(" | ")}</div>
-      <div class="debug-divider"></div>
-      <${DebugDivider} title="Game"/>
-      <div>x=${cursor && cursor.x} y=${cursor && cursor.y}</div>
-      <div>entity=${entity && entity.id}</div>
-      <div>turns=${turns}</div>
-      <${DebugDivider} title="Stats" />
-      <div>cells_drawn=${rendererStats && rendererStats.calls}</div>
-      <div>entity_count=${worldStats && worldStats.entities}</div>
-      <div>action_count=${worldStats && worldStats.actions}</div>
+  return visible && html`
+    <${Box} class=inspector direction=column shrink=0>
+      <${InspectorPanel} title=Modes>
+        <ul class=inspect-modes>
+          ${modes.map(name => html`<li>${name}</li>`)}
+        </ul>
+      <//>
+
+      <${InspectorPanel} title=Game>
+        <div>x=${cursor && cursor.x} y=${cursor && cursor.y}</div>
+        <div>entity=${entity && entity.id}</div>
+        <div>turns=${turns}</div>
+      <//>
+
+      <${InspectorPanel} title=Stats>
+        <div>cells_drawn=${rendererStats && rendererStats.calls}</div>
+        <div>entity_count=${worldStats && worldStats.entities}</div>
+        <div>action_count=${worldStats && worldStats.actions}</div>
+      <//>
     </${Box}>
   `;
 };
 
-let DebugDivider = ({ length=15, title }) => {
-  let padding = Math.floor((length - title.length) / 2);
-
+let InspectorPanel = ({ title, children }) => {
   return html`
-    <${Text}>
-     ${`[9]${"-".repeat(padding)}[10]${title}[9]${"-".repeat(padding)}`}
-    </${Text}>
+    <${Box} class=inspector-panel direction=column>
+      <header>
+        <div style=${{ color: getColor(4) }}>${title}</div>
+      </header>
+      ${children}
+    </${Box}>
   `;
 };
 
@@ -381,14 +417,16 @@ let PopupManager = () => {
 };
 
 let Editor = () => {
+  let ui = useUI();
   let [visible, setVisibility] = useState(false);
 
   useEventListener("editor-open", () => setVisibility(true));
   useEventListener("editor-close", () => setVisibility(false));
 
   return visible && html`
-    <${Box} class="editor" justify="space-between">
+    <${Box} class=editor justify=space-between shrink=0 direction=column>
       <${Palette} />
+      <${GlyphLibrary} onSelect=${glyph => ui.message(`Glyph ${glyph}`)}/>
     </${Box}>
   `;
 };
@@ -398,8 +436,10 @@ let LogPreview = () => {
 
   useEventListener("set-message", setMessage);
 
+  if (!message) return null;
+
   return html`
-    <${Box} class="log-preview" height=${1}>
+    <${Box} class="log-preview">
       ${message}
     </${Box}>
   `;
@@ -469,32 +509,130 @@ let Status = () => {
 
   let { player } = ui.world;
   let stats = player.get(Stats);
-  let souls = player.get(Souls);
 
   return html`
-    <${Box} class=status justify=space-between>
-      <${Bar} length=${stats.maxHitpoints} value=${stats.hitpoints} color=${2} />
-      <${Box} height=${1}>${souls.value}</${Box}>
-      <${Bar} length=${stats.maxStamina} value=${stats.stamina} color=${3} />
+    <${Box} class=status direction=column>
+      <${Bar}
+        length=${stats.maxHitpoints}
+        value=${stats.hitpoints}
+        color=${settings["ui.colors.healthBar"]}
+      />
+      <${Bar}
+        length=${stats.maxStamina}
+        value=${stats.stamina}
+        color=${settings["ui.colors.staminaBar"]}
+      />
     </${Box}>
   `;
 };
 
-let App = ({ ui }) => {
-  const DEBUG = settings["debug"];
+let SoulCounter = () => {
+  let ui = useUI();
+  let souls = ui.world.player.get(Souls);
 
   return html`
+    <${Box} class=souls height=${1} justify=space-between>
+      <span>Souls</span>
+      <span>${souls.value}</span>
+    </${Box}>
+  `;
+};
+
+let EquipmentSlots = () => {
+  let ui = useUI();
+  let equipment = ui.world.player.get(Equipment);
+
+  return html`
+    <${Box} class=equipment direction=column align=flex-start>
+      <${EquipmentSlot}
+        item=${equipment.slots.leftHand}
+        selected=${equipment.selectedSlot === "leftHand"}
+        onClick={${() => equipment.selectSlot("leftHand")}}
+      />
+      <${EquipmentSlot}
+        item=${equipment.slots.rightHand}
+        selected=${equipment.selectedSlot === "rightHand"}
+        onClick={${() => equipment.selectSlot("rightHand")}}
+      />
+      <${EquipmentSlot}
+        item=${equipment.slots.consumable}
+        selected=${equipment.selectedSlot === "consumable"}
+        onClick={${() => equipment.selectSlot("consumable")}}
+      />
+      <${EquipmentSlot}
+        item=${equipment.slots.castable}
+        selected=${equipment.selectedSlot === "castable"}
+        onClick={${() => equipment.selectSlot("castable")}}
+      />
+    </div>
+  `;
+};
+
+let EquipmentSlot = ({ item, selected, onClick }) => {
+  let className = classes(
+    "equipment-slot",
+    selected && "equipment-slot-selected"
+  );
+
+  let empty = item == null;
+  let color = getColorSetting("equipmentSlot");
+  let name = item && item.get(Components.Name);
+
+  if (empty) color = getColorSetting("equipmentSlotEmpty");
+  if (selected) color = getColorSetting("equipmentSlotSelected");
+
+  let style = {
+    color: color,
+  };
+
+  return html`
+    <${Box} class=${className} style=${style} onClick=${onClick}>
+      ${item ? html`
+        <${Glyph} id=${item.glyph} color=${item.color} />
+        <${Box}>${name.value}</${Box}>
+      ` : html`
+        <${Glyph} id=${16} color=${9} />
+        <${Box}>Nothing</${Box}>
+      `}
+    </${Box}>
+  `;
+}
+
+let Sidebar = ({ children }) => {
+  return html`
+    <${Box} class=sidebar direction=column shrink=0>
+      ${children}
+    </${Box}>
+  `;
+};
+
+let BannerMessage = ({ color, children }) => {
+  let style = {
+    color: getColor(color),
+  };
+
+  return html`
+    <h1 class=banner-message style=${style}>${children}</h1>
+  `;
+};
+
+let App = ({ ui }) => {
+  return html`
     <${UIContext.Provider} value=${ui}>
-      <div class="ui">
-        ${DEBUG && html`<${Debug} />`}
-        <${Status} />
-        <${Viewport} ui=${ui}>
+      <${Box} class=ui>
+        <${Viewport}>
           <${PopupManager} />
-        <//>
-        <${LogPreview} />
-        <${Console} />
-        <${Editor} />
-      </div>
+          <${LogPreview} />
+          <${Console} />
+        </${Viewport} />
+        <${Sidebar}>
+          <${SoulCounter} />
+          <${Status} />
+          <${EquipmentSlots} />
+          <${Inspector} />
+          <${Editor} />
+        </${Sidebar}>
+      </${Box}>
     </${UIContext.Provider}>
   `;
 };

@@ -1,6 +1,6 @@
 import settings from "./settings.js";
 import { World, TileMap } from "./rogue.js";
-import { Emitter, clamp } from "./utils.js";
+import * as Utils from "./utils.js";
 
 export class Font {
   /**
@@ -76,7 +76,7 @@ export class Renderer {
     this.ready = false;
     this.console = new Console(width, height);
     this.screen = new Console(width, height);
-    this.events = new Emitter();
+    this.events = new Utils.Emitter();
   }
 
   /**
@@ -439,7 +439,7 @@ export class Input {
 
 export class UI {
   commands = {};
-  events = new Emitter();
+  events = new Utils.Emitter();
   input = new Input();
   ready = false;
 
@@ -501,8 +501,8 @@ export class UI {
       let cameraX = target.x - Math.floor(console.width / 2);
       let cameraY = target.y - Math.floor(console.height / 2);
 
-      camera.x = clamp(minCameraX, cameraX, maxCameraX);
-      camera.y = clamp(minCameraY, cameraY, maxCameraY);
+      camera.x = Utils.clamp(minCameraX, cameraX, maxCameraX);
+      camera.y = Utils.clamp(minCameraY, cameraY, maxCameraY);
     }
   }
 

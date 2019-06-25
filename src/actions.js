@@ -168,7 +168,7 @@ export class Attack extends Action {
     let isTargetDead = targetStats.hitpoints === 0;
 
     if (isTargetDead === false) {
-      return succeed(`You hit the ${this.target.type.id} for ${damage} damage`);
+      return succeed(`You hit the ${this.target.type.id} with the ${weapon.type.id} for ${damage} damage`);
     }
 
     attacker.send({ type: "killed", target });

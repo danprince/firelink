@@ -1,10 +1,10 @@
 export default {
   "debug": true,
-  "map.width": 10,
-  "map.height": 10,
-  "renderer.width": 20,
+  "map.width": 100,
+  "map.height": 100,
+  "renderer.width": 25,
   "renderer.height": 20,
-  "renderer.scale": 2.25,
+  "renderer.scale": 3,
   "font.url": "assets/10x10.png",
   "font.glyphWidth": 10,
   "font.glyphHeight": 10,
@@ -40,6 +40,7 @@ export default {
   ],
   "controls": {
     "exit": ["escape"],
+    "toggle-inspector": ["i"],
     "toggle-editor": ["e"],
     "editor-cycle": ["left-click"],
     "focus-console": ["/"],
@@ -55,4 +56,10 @@ export default {
     "rest": ["r"],
   },
   "rules.maxActionTries": 10,
+  "ui.colors.inspectorTitle": 4,
+  "ui.colors.healthBar": 2,
+  "ui.colors.staminaBar": 3,
+  "ui.colors.equipmentSlot": 10,
+  "ui.colors.equipmentSlotEmpty": 9,
+  "ui.colors.equipmentSlotSelected": 1,
 }

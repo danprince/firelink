@@ -1,12 +1,8 @@
-import { Component, Entity, Actor } from "./rogue.js";
+import { Component, Entity, Actor, Action } from "./rogue.js";
 import * as Actions from "./actions.js";
 import * as Utils from "./utils.js";
 
 export { Actor };
-
-export class Behaviours extends Component {
-
-}
 
 export class Stats extends Component {
   requires = Actor;
@@ -210,6 +206,19 @@ export class Equipable extends Component {
   }
 }
 
+export class Consumable extends Equipable {
+  requires = Item;
+
+  /**
+   * @param {{ uses: number }} params
+   */
+  constructor({ uses }) {
+    super("consume");
+    this.uses = uses;
+    this.maxUses = uses;
+  }
+}
+
 export class Modifiers extends Component {
   requires = Equipable;
 }
@@ -236,6 +245,20 @@ export class Souls extends Component {
    * @param {number} value
    */
   set(value) {
+    this.value = value;
+  }
+}
+
+export class Name extends Component {
+  constructor(value) {
+    super();
+    this.value = value;
+  }
+}
+
+export class Description extends Component {
+  constructor(value) {
+    super();
     this.value = value;
   }
 }

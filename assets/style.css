@@ -6,11 +6,6 @@
 body {
   margin: 0;
   font-family: fivepx, monospace;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  user-select: none;
 
   /* Remember to change this with the palette */
   background: #222321;
@@ -20,12 +15,11 @@ body {
   box-sizing: border-box;
 }
 
-.box {
+#root {
+  height: 100vh;
   display: flex;
-}
-
-.root {
-  position: relative;
+  align-items: start;
+  justify-content: start;
 }
 
 canvas {
@@ -33,18 +27,42 @@ canvas {
   display: block;
 }
 
-.log {
-  overflow: scroll;
+.box {
+  display: flex;
 }
 
-.debug {
-  position: fixed;
-  top: 0;
-  left: 0;
-  padding: 10px;
-  pointer-events: none;
-  background: rgba(0, 0, 0, 0.3);
-  z-index: 100;
+.ui {
+  position: relative;
+  user-select: none;
+  display: flex;
+}
+
+.viewport {
+  flex-shrink: 0;
+  position: relative;
+  overflow: hidden;
+}
+
+.sidebar {
+  padding: 5px;
+  height: 100%;
+  overflow-x: hidden;
+  overflow-y: scroll;
+}
+
+.log-preview {
+  position: absolute;
+  background: rgba(0, 0, 0, 0.5);
+  padding: 4px 10px;
+  bottom: 0;
+  left: 50%;
+  transform: translateX(-50%);
+}
+
+.inspect-modes {
+  padding: 0;
+  margin: 0;
+  list-style-type: none;
 }
 
 .console input {
@@ -87,28 +105,60 @@ canvas {
   color: black;
 }
 
-.editor {
-  position: fixed;
-  bottom: 0;
-  left: 0;
-  right: 0;
-}
-
-.viewport {
-  position: relative;
-  overflow: hidden;
-}
-
-.popup-manager {
-  position: absolute;
-  top: 0;
-  left: 0;
-}
-
 .popup {
   position: absolute;
 }
 
 .text img {
   vertical-align: middle;
+}
+
+.viewport .popup-manager {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+.hud {
+  width: 240px;
+}
+
+.editor {
+}
+
+.editor .glyphs {
+  height: 100%;
+  overflow: scroll;
+}
+
+.editor .glyphs::-webkit-scrollbar {
+  display: none;
+}
+
+.glyphs .glyph:hover {
+  background: blue;
+}
+
+.console {
+  pointer-events: none;
+  position: absolute;
+  bottom: 0;
+  left: 0;
+}
+
+.equipment-slot .glyph {
+  margin-right: 4px;
+}
+
+.banner-message {
+  background: rgba(0, 0, 0, 0.5);
+  position: absolute;
+  padding: 20px;
+  left: 0;
+  right: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  text-transform: uppercase;
+  text-align: center;
+  margin: 0;
 }

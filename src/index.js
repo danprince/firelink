@@ -12,6 +12,7 @@ import {
 
 import { UI, Font, CanvasRenderer } from "./ui.js";
 import { mount } from "./widgets.js";
+import { sleep } from "./utils.js";
 import data from "./data.js";
 import settings from "./settings.js";
 import * as Actions from "./actions.js";
@@ -55,6 +56,12 @@ let playerBehaviour = new Behaviours.Async();
 let setPlayerAction = action => playerBehaviour.setNextAction(action);
 
 ui.commands = {
+  "inspector-open": () => {
+    ui.push("inspector");
+  },
+  "inspector-close": () => {
+    ui.pop("inspector");
+  },
   "editor-open": () => {
     ui.push("editor");
   },
@@ -191,8 +198,10 @@ function setupSandboxArea() {
   world.player.x = 3;
   world.player.y = 3;
 
-  for (let i = 0; i < 2; i++) {
+  for (let i = 0; i < 200; i++) {
     let entity = new Entity("TorchHollow");
+    entity.glyph = 80 + Random.int(12);
+    entity.color = Random.pick(10, 11, 14, 15, 18, 19, 22, 23, 24, 25, 26, 27);
     entity.x = 1 + Random.int(world.map.width - 2);
     entity.y = 1 + Random.int(world.map.height - 2);
     world.spawn(entity);

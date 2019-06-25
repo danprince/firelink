@@ -7,6 +7,7 @@ export default {
     { mode: "default", "on": "restart", trigger: "restart" },
     { mode: "default", "on": "toggle-editor", trigger: "editor-open" },
     { mode: "default", "on": "focus-console", trigger: "focus-console" },
+    { mode: "default", "on": "toggle-inspector", trigger: "inspector-open" },
 
     { mode: "default", "on": "rest", trigger: "rest" },
     { mode: "default", "on": "north", trigger: "walk-north" },
@@ -22,6 +23,9 @@ export default {
     { mode: "editor", "on": "toggle-editor", trigger: "editor-close" },
     { mode: "editor", "on": "editor-cycle", trigger: "editor-cycle" },
     { mode: "editor", "on": "exit", trigger: "editor-close" },
+
+    // Inspector controls
+    { mode: "inspector", "on": "toggle-inspector", trigger: "inspector-close" },
   ],
 
   /**
@@ -130,22 +134,50 @@ export default {
         Inventory: {},
         Equipment: {
           leftHand: "BlackKnightGreatSword",
+          rightHand: null,
+          consumable: "EstusFlask",
+          castable: null,
         },
       },
+    },
+    {
+      id: "EstusFlask",
+      extends: "Item",
+      attributes: {
+        glyph: 113,
+        color: 27,
+      },
+      components: {
+        Item: { weight: 0 },
+        Consumable: { uses: 8 },
+        Name: "Estus Flask",
+        Description: "Drink to recover HP",
+      },
+    },
+    {
+      id: "HollowStraightSword",
+      extends: "Item",
+      attributes: {
+        glyph: 112,
+        color: 14,
+      },
+      components: {
+        Item: { weight: 3 },
+        Equipable: "wield",
+        Name: "Hollow Straight Sword",
+      }
     },
     {
       id: "BlackKnightGreatSword",
       extends: "Item",
       attributes: {
-        glyph: 94,
-        color: 9,
+        glyph: 112,
+        color: 14,
       },
       components: {
         Item: { weight: 10 },
         Equipable: "wield",
-        Modifiers: {
-          Bleed: { amount: 1 },
-        },
+        Name: "Black Knight Greatsword",
       }
     }
   ],
