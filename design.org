@@ -1,0 +1,97 @@
+#+TITLE: Firelink
+Design document for collecting ideas on design & implementation for features in the game.
+
+* Mechanics
+** Speed
+- Need speed so that there can realistically be slow/fast monsters and the player can be slowed when moving through water / swamp.
+- Would rather not having speed & stamina as separate systems.
+- How can monster stamina be used to model speed?
+** Combat
+*** Telegraphing
+*** Parring
+*** Blocking
+*** Stagger
+** Status
+*** Poison
+*** Toxic
+*** Bleed
+** Exploration
+*** Floor messages
+*** Hidden walls
+*** Traps
+*** Chests
+*** Items
+** Invasions
+- Randomly have AI invaders appear if the player meets certain conditions.
+- PVP: This is a huge stretch goal that can only come much later, but still worth keeping in mind with how code is structured now.
+- The player would need an RTC data connection to the player where they would receive the world updates they needed.
+- Would need to adjust their client so that it controlled their entity (rather than the player's one.)
+- Easiest first step might be to implement spectator phantoms
+- Even easier first step would be to implement cross world messages
+** Lighting / Vision
+- Want to add field of vision + light based colour blending as the player ventures further down the game.
+- Even the upper levels should have light from fires etc.
+
+* Levels
+Players can either choose to go up or down to ring the bell of awakening and beat the game. Move up/down through distinctive looking doorways/entrances. As much as possible use predesigned rooms and connect.
+
+** Archives
+Loosely based on the Duke's Archives. Filled with Wax Librarians and whill include a boss room for the final boss.
+** Cathedral
+Possibly a fixed design level with some random rooms? Include sentinels, deacons, and a hard boss. Anor Londo / Cathedral of the Deep.
+** Fortress
+Sen's Fortress. Traps, Lizardmen. Medium boss.
+** Parish
+Undead Parish, Undead settlement. Lots of hollows, balders. Easy boss. Gargoyles
+** Forest
+** Shrine (You start here)
+** Graves
+** Sewers
+** Swamps
+** Ruins
+** Abyss
+* AI
+The base behaviours for most enemies is quite similar.
+- If we see a target in range, attack them
+- If the target is near enough to melee, do that
+- If the target is near enough to range, do that
+- If the target is too far from our spawn, go back there
+
+This needs to be extended for some of the following edge cases
+- Crystal Lizards run away, when the player is in range
+- Hollows with Estus flasks will drink when on low hp and safe
+- Enemies with items might choose to use them (Firebomb etc)
+- Bosses might run on coreographed patterns of attacks
+
+Taken a good attempt at implementing AI with both GOAP and FSM and both attempts have been problematic.
+
+** GOAP
+The main roadblock here has been that the GOAP class isn't responsible for actually executing the actions it produces (that happens in the TurnSystem) which means there needs to be some hacky hook management to let it know whether the action failed.
+
+I think this is just a fundamental parity mismatch between the actions model and the goals model. Most GOAP implementations have the goals execute themselves. The challenge with this in a turn based game is that there is nothing to stop a goal executing multiple actions in a single turn (resulting in an entity getting multiple moves etc).
+
+** FSM
+Also tried a FSM approach which definitely works better, each state is responsible for producing an action and possibly specifying a transition into another state.
+
+The tricky thing here is that the state machine can't easily tell whether its action was successful. It's hard to write logic for getting a player unstuck etc.
+
+* ECS
+Pretty happy with the current state of the ECS model. Would like to improve the syntax for accessing some of the core components. `player.get(Stats).hp += 1` vs `player.stats.hp += 1`.
+
+Maybe call the stats component "Vitals" or "Status" instead?
+* UI
+Need to start emitting more world events so that the UI can listen to those changes and update correctly after each frame.
+
+World events shouldn't be emitted directly, but instead put into a queue and flushed after each world update attempt.
+
+Feels like the console rendering stuff could become a standalone library, especially if the "frame" scene tree model was added again.
+
+Might want to support background color on tiles too.
+
+We could do easy multi-color tiles if we ported the canvas renderer to Webgl instead. Not sure how well that would work for the renderer in the UI though.
+
+Input model feels pretty solid.
+* Tools
+- [ ] Validators
+  - [ ] Inheritance
+  - [ ] Components
