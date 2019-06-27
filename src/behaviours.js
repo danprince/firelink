@@ -1,42 +1,32 @@
-import { Behaviour, Action, Random } from "./rogue.js";
-import { Rest, MoveTo } from "./actions.js";
+import { Behaviour, Action } from "./rogue.js";
+import * as Actions from "./actions.js";
 
-export class Resting extends Behaviour {
-  getNextAction() {
-    return new Rest();
+export class Enemy extends Behaviour {
+  idle = entity => {
+    if (entity.y === 0) {
+      this.transition(this.moveNorth);
+    } else {
+      this.transition(this.moveSouth);
+    }
   }
-}
 
-export class Guarding extends Behaviour {
-  getNextAction() {
-    return new Rest();
+  moveNorth = entity => {
+    if (entity.y <= 1) {
+      this.transition(this.moveSouth);
+    } else {
+      return new Actions.MoveBy(0, -1);
+    }
   }
-}
 
-export class Wandering extends Behaviour {
-  getNextAction() {
-    let moveBy = (dx, dy) => new MoveTo(
-      this.entity.x + dx,
-      this.entity.y + dy,
-    );
-
-    return Random.pick(
-      moveBy(0, 0),
-      moveBy(0, 0),
-      moveBy(0, 0),
-      moveBy(0, 0),
-      moveBy(0, 1),
-      moveBy(0, -1),
-      moveBy(1, 0),
-      moveBy(-1, 0),
-    );
+  moveSouth = entity => {
+    if (entity.y >= 10) {
+      this.transition(this.moveNorth);
+    } else {
+      return new Actions.MoveBy(0, 1);
+    }
   }
-}
 
-export class Fleeing extends Behaviour {
-  getNextAction() {
-    return new Rest();
-  }
+  currentState = this.idle;
 }
 
 export class Async extends Behaviour {

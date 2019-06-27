@@ -98,9 +98,6 @@ export let Inheritance = {
   }
 };
 
-/**
- * @template T
- */
 export class Component {
   /**
    * @type {{ [id: string]: Rogue.ComponentClass<any> }}
@@ -135,34 +132,36 @@ export class Component {
     }
   }
 
-  get name() {
+  get className() {
     return this.constructor.name;
   }
 
-  /** @type {Rogue.ComponentClass | Rogue.ComponentClass[]} */
-  requires = [];
+  /**
+   * Allows a component to define the other components that its
+   * entity must have with a static property on the constructor.
+   *
+   * @type {Rogue.ComponentClass[]}
+   */
+  get requires() {
+    // @ts-ignore
+    return Utils.asList(this.constructor.requires);
+  }
 
   /**
-   * @type {T}
+   * @type {Entity}
    */
   entity = null;
 
   /**
    * Checks whether the component can be added to a specific entity.
-   * @return {string | void}
+   * @param {Entity} entity
    */
   validate(entity) {
-    let requiredComponentClasses = [];
+    let requires = this.requires;
 
-    if (this.requires instanceof Array) {
-      requiredComponentClasses = this.requires;
-    } else if (this.requires != null) {
-      requiredComponentClasses = [this.requires];
-    }
-
-    for (let componentClass of requiredComponentClasses) {
+    for (let componentClass of requires) {
       if (!entity.has(componentClass)) {
-        return `Can't add ${this.name} to an entity without ${componentClass.name}`;
+        throw new Error(`Can't add ${this.className} to an entity without ${componentClass.name}`);
       }
     }
   }
@@ -253,11 +252,7 @@ export class Entity {
    * @param {Component} component
    */
   add(component) {
-    let result = component.validate(this);
-
-    if (result !== undefined) {
-      return console.error(result);
-    }
+    component.validate(this);
 
     this.components.push(component);
     component.entity = this;
@@ -334,9 +329,6 @@ export class Entity {
   }
 }
 
-/**
- * A behaviour is responsible for producing actions.
- */
 export class Behaviour {
   /**
    * @type {{ [id: string]: Rogue.Constructor<Behaviour> }}
@@ -350,83 +342,36 @@ export class Behaviour {
     Object.assign(this.registry, behaviours);
   }
 
-  /**
-   * @param {string} id
-   */
   static create(id) {
-    if (id in Behaviour.registry) {
-      return new Behaviour.registry[id]();
-    } else {
-      console.warn(`Behaviour does not exist "${id}"`);
-      return new Behaviour();
-    }
+    return new this.registry[id]();
+  }
+
+  /**
+   * @type {Rogue.Behaviour.State}
+   */
+  currentState = null;
+
+  /**
+   * @param {Rogue.Behaviour.State} state
+   */
+  transition(state) {
+    console.log(state.name);
+    this.currentState = state;
+    return state;
   }
 
   /**
    * @param {Entity} entity
-   */
-  bind(entity) {
-    this.entity = entity;
-  }
-
-  unbind() {
-    this.entity = null;
-  }
-
-  /**
    * @return {Action}
    */
-  getNextAction() {
-    return null;
-  }
-}
+  getNextAction(entity) {
+    let action = null;
 
-export class Actor extends Component {
-  /**
-   * @type {Behaviour}
-   */
-  behaviour = null;
+    while (action == null) {
+      action = this.currentState(entity);
+    }
 
-  /**
-   * @type {Action}
-   */
-  previousAction = null;
-
-  /**
-   * @param {{ behaviour: string }} params
-   */
-  constructor({ behaviour }) {
-    super();
-    this.behaviour = Behaviour.create(behaviour);
-  }
-
-  onEnter() {
-    this.behaviour.bind(this.entity);
-  }
-
-  onExit() {
-    this.behaviour.unbind();
-  }
-
-  onBeforeTurn() {}
-
-  onAfterTurn() {}
-
-  /**
-   * @param {Action} action
-   */
-  onBeforeAction(action) {}
-
-  /**
-   * @param {Action} action
-   * @param {Action.Result} result
-   */
-  onAfterAction(action, result) {
-    this.previousAction = action;
-  }
-
-  takeTurn() {
-    return this.behaviour.getNextAction();
+    return /** @type {Action} */(action);
   }
 }
 
@@ -536,8 +481,6 @@ export class World {
   camera = { x: 0, y: 0 };
   ticks = 0;
   turns = 0;
-
-  turnSystem = new System();
 
   /**
    * @type {System[]}
@@ -664,20 +607,34 @@ export class Action {
   }
 
   /**
-   * @type {Rogue.ComponentClass | Rogue.ComponentClass[]}
+   * Allows the action to define the components that the performing
+   * entity must have.
+   *
+   * @type {Rogue.ComponentClass[]}
    */
-  requires;
+  get requires() {
+    // @ts-ignore
+    return Utils.asList(this.constructor.requires);
+  }
+
+  get className() {
+    return this.constructor.name;
+  }
 
   /**
+   * Alternate actions keep track of the parent action which caused them
+   * @type {Action}
+   */
+  parent = null;
+
+  /**
+   * Checks whether the action can be performed by a specific entity.
    * @param {Entity} entity
-   * @return {string | void}
    */
   validate(entity) {
-    let requiredComponentClasses = Utils.asList(this.requires);
-
-    for (let componentClass of requiredComponentClasses) {
+    for (let componentClass of this.requires) {
       if (!entity.has(componentClass)) {
-        console.warn(`must have "${componentClass.name}" component to perform "${this.constructor.name}"`);
+        throw new Error(`Can't perform ${this.className} without ${componentClass.name}`);
       }
     }
   }
@@ -687,6 +644,7 @@ export class Action {
    * @return {ActionResult}
    */
   perform(entity) {
+    this.validate(entity);
     return ActionResult.fail();
   }
 }

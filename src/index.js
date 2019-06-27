@@ -3,16 +3,14 @@ import {
   Random,
   Component,
   Entity,
-  Behaviour,
   TileMap,
   Directions,
-  Actor,
   Action,
+  Behaviour,
 } from "./rogue.js";
 
 import { UI, Font, CanvasRenderer } from "./ui.js";
 import { mount } from "./widgets.js";
-import { sleep } from "./utils.js";
 import data from "./data.js";
 import settings from "./settings.js";
 import * as Actions from "./actions.js";
@@ -44,16 +42,16 @@ let world = new World();
 let ui = new UI(world, renderer);
 
 /**
- * Give the player an async behaviour, so that we can provide actions
- * when they are available in the UI.
- */
-let playerBehaviour = new Behaviours.Async();
-
-/**
  * Provide the player's next action
  * @param {Action} action
  */
-let setPlayerAction = action => playerBehaviour.setNextAction(action);
+function setPlayerAction(action) {
+  world.player
+       .get(Components.Actor)
+       .behaviour
+       // @ts-ignore
+       .setNextAction(action);
+}
 
 ui.commands = {
   "inspector-open": () => {
@@ -198,7 +196,7 @@ function setupSandboxArea() {
   world.player.x = 3;
   world.player.y = 3;
 
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 1; i++) {
     let entity = new Entity("TorchHollow");
     entity.glyph = 80 + Random.int(12);
     entity.color = Random.pick(10, 11, 14, 15, 18, 19, 22, 23, 24, 25, 26, 27);
@@ -220,13 +218,13 @@ function init() {
   // Reset input bindings
   ui.input.bindings = data.bindings;
 
-  setupSandboxArea();
-
-  world.map.autotile();
-
   world.camera.target = world.player.id;
 
   world.spawn(world.player);
+
+  setupSandboxArea();
+
+  world.map.autotile();
 
   ui.push("default");
 }
@@ -234,11 +232,7 @@ function init() {
 function start() {
   init();
 
-  let playerActor = world.player.get(Actor);
-
-  playerActor.behaviour = playerBehaviour;
-
-  playerActor.onAfterAction = (action, result) => {
+  world.player.get(Components.Actor).onAfterAction = (_, result) => {
     if (result && result.message) {
       world.message(result.message);
     } else {

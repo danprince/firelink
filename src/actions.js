@@ -1,10 +1,12 @@
 import { TileMap, Entity, Action, Directions } from "./rogue.js";
-import { Stats, Souls, Disposition, Equipment } from "./components.js";
+import { Stats, Souls, Equipment } from "./components.js";
 
 let { succeed, fail, alternate } = Action.Result;
 
 export class Rest extends Action {
-  requires = Stats;
+  static get requires() {
+    return Stats;
+  }
 
   /**
    * @param {Entity} entity
@@ -95,10 +97,7 @@ export class Walk extends Action {
 
     // If there is a hostile entity here, then automatically attack
 
-    let target = entities.find(entity => {
-      let disposition = entity.get(Disposition);
-      return disposition && disposition.isHostileTo(entity.id);
-    });
+    let target = entities.find(entity => true);
 
     if (target) {
       return alternate(
@@ -116,7 +115,9 @@ export class Walk extends Action {
 }
 
 export class Attack extends Action {
-  requires = [Equipment];
+  static get requires() {
+    return Equipment;
+  }
 
   /**
    * @param {Entity} target

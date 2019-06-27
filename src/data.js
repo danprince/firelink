@@ -52,30 +52,14 @@ export default {
       },
     },
     {
-      id: "Creature",
+      id: "Enemy",
       attributes: {
         z: 2,
       },
       components: {
-        Actor: { behaviour: "Resting" },
+        Actor: "Enemy",
         Stats: { hitpoints: 1, stamina: 1 },
       }
-    },
-    {
-      id: "Enemy",
-      extends: "Creature",
-      components: {
-        Actor: { behaviour: "Guarding" },
-        Disposition: "hostile-to-player"
-      }
-    },
-    {
-      id: "Human",
-      extends: "Creature",
-      attributes: {
-        glyph: 80,
-        color: 23,
-      },
     },
     {
       id: "Hollow",
@@ -85,7 +69,6 @@ export default {
         color: 22,
       },
       components: {
-        Actor: { behaviour: "Wandering" },
         Stats: { hitpoints: 3, stamina: 3 },
       },
     },
@@ -123,15 +106,15 @@ export default {
     },
     {
       id: "Player",
-      extends: ["Human"],
       attributes: {
+        glyph: 80,
         color: 1,
         z: 3,
       },
       components: {
+        Actor: "Async",
         Stats: { hitpoints: 6, stamina: 6 },
         Souls: 40,
-        Inventory: {},
         Equipment: {
           leftHand: "BlackKnightGreatSword",
           rightHand: null,
@@ -148,10 +131,12 @@ export default {
         color: 27,
       },
       components: {
-        Item: { weight: 0 },
+        Holdable: { weight: 0 },
         Consumable: { uses: 8 },
-        Name: "Estus Flask",
-        Description: "Drink to recover HP",
+        Describe: {
+          name: "Estus Flask",
+          description: "Drink to recover HP",
+        }
       },
     },
     {
@@ -162,9 +147,11 @@ export default {
         color: 14,
       },
       components: {
-        Item: { weight: 3 },
-        Equipable: "wield",
-        Name: "Hollow Straight Sword",
+        Holdable: { weight: 3 },
+        Equipable: /** @type {"wield"} */ ("wield"),
+        Describe: {
+          name: "Hollow Straight Sword",
+        }
       }
     },
     {
@@ -175,9 +162,11 @@ export default {
         color: 14,
       },
       components: {
-        Item: { weight: 10 },
-        Equipable: "wield",
-        Name: "Black Knight Greatsword",
+        Holdable: { weight: 10 },
+        Equipable: /** @type {"wield"} */ ("wield"),
+        Describe: {
+          name: "Black Knight Greatsword",
+        }
       }
     }
   ],

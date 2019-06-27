@@ -1,11 +1,40 @@
-import { Component, Entity, Actor, Action } from "./rogue.js";
+import { Component, Entity, Action, Behaviour } from "./rogue.js";
 import * as Actions from "./actions.js";
 import * as Utils from "./utils.js";
 
-export { Actor };
+export class Actor extends Component {
+  /**
+   * @type {Behaviour}
+   */
+  behaviour = null;
+
+  /**
+   * @param {string} behaviourId
+   */
+  constructor(behaviourId) {
+    super();
+    this.behaviour = Behaviour.create(behaviourId);
+  }
+
+  getNextAction() {
+    return this.behaviour.getNextAction(this.entity);
+  }
+
+  /**
+   * @param {Action} action
+   */
+  onBeforeAction(action) {}
+
+  /**
+   * @param {Action} action
+   * @param {Action.Result} result
+   */
+  onAfterAction(action, result) {}
+}
+
 
 export class Stats extends Component {
-  requires = Actor;
+  static requires = Actor;
 
   /**
    * @param {{ hitpoints: number, stamina: number }} params
@@ -58,20 +87,8 @@ export class Stats extends Component {
   }
 }
 
-export class Hollowing extends Component {
-  requires = Actor;
-}
-
-export class Disposition extends Component {
-  requires = Actor;
-
-  isHostileTo(entityId) {
-    return true;
-  }
-}
-
 export class Equipment extends Component {
-  requires = Actor;
+  static requires = Actor;
 
   /**
    * @type {{
@@ -132,7 +149,7 @@ export class Equipment extends Component {
    */
   equip(item) {
     let isEquipable = (
-      item.has(Item) &&
+      item.has(Holdable) &&
       item.has(Equipable)
     );
 
@@ -186,16 +203,18 @@ export class Equipment extends Component {
   }
 }
 
-export class Inventory extends Component {
-  requires = Actor;
-}
-
-export class Item extends Component {
-
+export class Holdable extends Component {
+  /**
+   * @param {{ weight: number }} params
+   */
+  constructor({ weight }) {
+    super();
+    this.weight = weight;
+  }
 }
 
 export class Equipable extends Component {
-  requires = Item;
+  static requires = Holdable;
 
   /**
    * @param {"consume" | "cast" | "wield"} type
@@ -207,7 +226,7 @@ export class Equipable extends Component {
 }
 
 export class Consumable extends Equipable {
-  requires = Item;
+  static requires = Holdable;
 
   /**
    * @param {{ uses: number }} params
@@ -219,12 +238,8 @@ export class Consumable extends Equipable {
   }
 }
 
-export class Modifiers extends Component {
-  requires = Equipable;
-}
-
 export class Souls extends Component {
-  requires = Actor;
+  static requires = Actor;
 
   /**
    * @param {number} value
@@ -249,16 +264,13 @@ export class Souls extends Component {
   }
 }
 
-export class Name extends Component {
-  constructor(value) {
+export class Describe extends Component {
+  /**
+   * @param {{ name: string, description?: string }} value
+   */
+  constructor({ name, description }) {
     super();
-    this.value = value;
-  }
-}
-
-export class Description extends Component {
-  constructor(value) {
-    super();
-    this.value = value;
+    this.name = name;
+    this.description = description;
   }
 }

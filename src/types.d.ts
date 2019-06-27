@@ -1,7 +1,13 @@
 declare namespace Rogue {
   type Entity = import("./rogue.js").Entity;
-  type Component<T=Entity> = import("./rogue.js").Component<T>;
+  type Component = import("./rogue.js").Component;
   type Action = import("./rogue.js").Action;
+
+  export namespace Registry {
+    export type Components = typeof import("./components.js");
+    export type Actions = typeof import("./actions.js");
+    export type Systems = typeof import("./systems.js");
+  }
 
   export type Event = {
     type: string,
@@ -34,7 +40,9 @@ declare namespace Rogue {
       z?: number,
     },
     components?: {
-      [componentName: string]: any,
+      // Handy to have this typechecking here for now, but it will only
+      [K in keyof Registry.Components]?:
+        ConstructorParameters<Registry.Components[K]>[0];
     }
   }
 
@@ -68,5 +76,9 @@ declare namespace Rogue {
       on: string,
       trigger: string,
     };
+  }
+
+  export namespace Behaviour {
+    export type State = (entity: Entity) => Action | void;
   }
 }

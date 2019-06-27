@@ -399,7 +399,6 @@ export class Input {
    * @param {MouseEvent} event
    */
   handleMouseDown = event => {
-
     switch (event.button) {
       case 0: return this.press("left-click");
       case 1: return this.press("middle-click");

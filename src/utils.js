@@ -10,6 +10,7 @@ export function uid() {
  * @param {number} max
  */
 export function clamp(min, val, max) {
+  if (min > max) return min;
   if (val < min) return min;
   if (val > max) return max;
   return val;
@@ -182,6 +183,8 @@ export function assert(condition, message) {
 export function asList(items) {
   if (items instanceof Array) {
     return items;
+  } else if (items == null) {
+    return [];
   } else {
     return [items];
   }

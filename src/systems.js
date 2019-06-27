@@ -15,29 +15,31 @@ export class TurnSystem extends System {
       let actor = entity.get(Actor);
 
       if (actor) {
-        let triedActions = [];
+        /**
+         * @type {Action[]}
+         */
+        let tried = [];
 
+        // Loop until the actor has an action to perform
         while (true) {
-          let action = actor.takeTurn();
-          let result = Action.Result.fail();
+          let action = actor.getNextAction();
 
           if (action == null) {
             yield;
             continue;
           }
 
-          while (true) {
-            triedActions.push(action);
+          let result = Action.Result.fail();
+
+          while (tried.length < MAX_ACTION_TRIES) {
+            tried.push(action);
 
             actor.onBeforeAction(action);
             result = action.perform(entity);
             actor.onAfterAction(action, result);
 
-            if (triedActions.length >= MAX_ACTION_TRIES) {
-              break;
-            }
-
             if (result.alt) {
+              result.alt.parent = action;
               action = result.alt;
             } else {
               break;
@@ -45,12 +47,12 @@ export class TurnSystem extends System {
           }
 
           // Abort if this entity seems stuck
-          if (triedActions.length >= MAX_ACTION_TRIES) {
-            console.warn(`Actor might be stuck`, entity, triedActions);
+          if (tried.length >= MAX_ACTION_TRIES) {
+            console.warn(`Actor might be stuck`, entity, tried);
             break;
           }
 
-          // If the action succeeded
+          // If the action succeeded then move onto the next entity
           if (result.ok) {
             break;
           }

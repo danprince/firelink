@@ -1,7 +1,7 @@
 export default {
   "debug": true,
-  "map.width": 100,
-  "map.height": 100,
+  "map.width": 20,
+  "map.height": 20,
   "renderer.width": 25,
   "renderer.height": 20,
   "renderer.scale": 3,

@@ -576,7 +576,7 @@ let EquipmentSlot = ({ item, selected, onClick }) => {
 
   let empty = item == null;
   let color = getColorSetting("equipmentSlot");
-  let name = item && item.get(Components.Name);
+  let describe = item && item.get(Components.Describe);
 
   if (empty) color = getColorSetting("equipmentSlotEmpty");
   if (selected) color = getColorSetting("equipmentSlotSelected");
@@ -589,7 +589,7 @@ let EquipmentSlot = ({ item, selected, onClick }) => {
     <${Box} class=${className} style=${style} onClick=${onClick}>
       ${item ? html`
         <${Glyph} id=${item.glyph} color=${item.color} />
-        <${Box}>${name.value}</${Box}>
+        <${Box}>${describe.name}</${Box}>
       ` : html`
         <${Glyph} id=${16} color=${9} />
         <${Box}>Nothing</${Box}>
