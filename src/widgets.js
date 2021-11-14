@@ -1,5 +1,5 @@
 // @ts-ignore (typescript can't find external modules)
-import * as Preact from "https://unpkg.com/@danprince/preact-app";
+import * as Preact from "https://unpkg.com/htm/preact/standalone.mjs";
 import * as Utils from "./utils.js";
 import * as Components from "./components.js";
 import { Stats, Souls, Equipment } from "./components.js";
